@@ -1,0 +1,9 @@
+module: plugin-gantt
+name: Диаграмма Ганта
+description: Описание плагина
+dependencies:
+  - ui
+  - ui-collection
+  - ui-element
+  - tasks
+  - orgschema

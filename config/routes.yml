@@ -1,0 +1,4 @@
+frontend:
+  mainPage:
+    pattern: /gantt
+    title: Диаграмма Ганта
