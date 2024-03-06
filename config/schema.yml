@@ -1,0 +1,12 @@
+project:
+  fields:
+    id:
+      type: int
+    title:
+      type: string
+    start_date:
+      type: date
+    finish_date:
+      type: date
+    tasks:
+      type: array[int]

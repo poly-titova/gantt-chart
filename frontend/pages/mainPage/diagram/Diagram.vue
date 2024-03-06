@@ -15,6 +15,14 @@
     <h3 class="h-fri">сб</h3>
     <h3 class="h-sat">вс</h3>
 
+    <div
+      v-for="(project, index) in projects"
+      :class="`t-${index}`"
+      :style="`grid-column: sun-morning / mon-night; grid-row: ${index + 1};`"
+      :key="project.id"
+      :project=project
+    >{{ project.title }}</div>
+<!-- 
     <div class="t-1" style="grid-column: sun-morning / mon-night;">Прописать тз</div>
     <div class="t-2" style="grid-column: mon-morning / sat-night;">Создать проект</div>
     <div class="t-3" style="grid-column: sun-morning / tue-midday;">Отправить отчёт</div>
@@ -22,12 +30,16 @@
     <div class="t-5" style="grid-column: mon-morning / wed-midday;">Обучить стажёра</div>
     <div class="t-6" style="grid-column: mon-night / fri-morning;">Прокачать навыки</div>
     <div class="t-7" style="grid-column: wed-midday /sat-night;">Найти работников</div>
-    <div class="t-8" style="grid-column: wed-midday / thu-midday;">Отправить зарплату</div>
+    <div class="t-8" style="grid-column: wed-midday / thu-midday;">Отправить зарплату</div> -->
   </div>
 </template>
 
 <script>
-export default {};
+export default {
+  props: {
+    projects: Array,
+  },
+};
 </script>
 
 <style>
@@ -109,7 +121,7 @@ h3.h-sat {
   grid-column: 13 / span 2;
 }
 
-/* tasks */
+/* projects */
 .gantt div {
   color: white;
   font-size: 12px;
@@ -125,36 +137,4 @@ h3.h-sat {
   }
 }
 
-/* specific task styles */
-.t-1 {
-  grid-row: 2;
-}
-
-.t-2 {
-  grid-row: 3;
-}
-
-.t-3 {
-  grid-row: 4;
-}
-
-.t-4 {
-  grid-row: 5;
-}
-
-.t-5 {
-  grid-row: 6;
-}
-
-.t-6 {
-  grid-row: 7;
-}
-
-.t-7 {
-  grid-row: 8;
-}
-
-.t-8 {
-  grid-row: 9;
-}
 </style>
