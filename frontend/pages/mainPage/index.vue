@@ -15,6 +15,8 @@
       />
     </ui-collection-panel>
 
+    <Calendar />
+
     <Diagram :projects="projects" />
 
     <ModalProject
@@ -31,21 +33,25 @@
 import Chart from './chart/Chart.vue';
 import Diagram from './diagram/Diagram.vue';
 import ModalProject from './ModalProject.vue';
+import Calendar from './calendar/Calendar.vue';
 
 export default {
   components: {
     Diagram,
     Chart,
     ModalProject,
+    Calendar,
   },
   async created() {
     await this.loadProjects({});
+    await this.loadTasks({});
   },
   data() {
     return {
       apiKey: 'eeb845c1-c5f8-4856-b4b0-f29d5cb6ab71',
       dialogVisible: false,
       projects: [],
+      tasks: [],
     };
   },
   methods: {
@@ -89,6 +95,9 @@ export default {
         this.$uiNotify.error('Ошибка при сохранении');
         throw e;
       }
+    },
+    async loadTasks() {
+      this.tasks = await $platform.api.requestRoute('tasks.api.task.list', {}, {});
     },
   },
 };

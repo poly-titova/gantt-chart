@@ -1,45 +1,59 @@
 <template>
   <ui-sidebar
     v-model="isSidebarVisible"
-    title="Добавить кассу"
+    title="Проект"
     class="sidebar"
     @hide="resetState"
   >
-    <p>Заголовок: {{ task.name }}</p>
-    <p>Описание: {{ getText(task.description) }}</p>
-    <p>Исполнитель: {{ task.responsible_user_ids }}</p>
-    <p>Начало работы: {{ task.start_date }}</p>
-    <p>Завершение работы: {{ task.finish_date }}</p>  
+    <p>Заголовок: {{ project.title }}</p>
+    <p>Начало работы: {{ getDate(project.start_date) }}</p>
+    <p>Завершение работы: {{ getDate(project.finish_date) }}</p>
+    <el-button
+      size="small"
+      @click="closeSidebar"
+    >
+      <span>Закрыть</span>
+    </el-button>
   </ui-sidebar>
 </template>
 
 <script>
 export default {
   props: {
-    task: Array,
+    value: Object,
+    project: Array,
   },
   data() {
     return {
       isSidebarVisible: false,
     };
   },
+  watch: {
+    value: {
+      immediate: true,
+      handler(val) {
+        this.item = $utils.object.clone(val);
+      },
+    },
+  },
   methods: {
     open() {
       this.isSidebarVisible = true;
     },
-    handleModalHide() {
-      this.selectedCashbox = this.createDefaultCashbox();
+    async closeSidebar() {
+      this.resetState();
     },
-    getText(str) {
-      if (str !== null) {
-        const startIndex = str.indexOf('<p>') + 3;
-        const endIndex = str.indexOf('</p>', startIndex);
-        const text = str.substring(startIndex, endIndex);
+    resetState() {
+      this.isSidebarVisible = false;
+    },
+    getDate(date) {
+      if (date !== null) {
+        const ymd = date.replace(new RegExp(`T.*`), '').split(`-`);
 
-        return text;
+        return `${ymd[2]}.${ymd[1]}.${ymd[0]}`;
       }
       
-      return str;
+      return '';
     },
   },
 };
@@ -48,13 +62,8 @@ export default {
 <style lang="less" scoped>
 .sidebar {
   top: 0 !important;
-  width: 70% !important;
+  width: 550px;
   background: white;
-
-  .table {
-    width: 100%;
-    padding-left: 20px;
-  }
 
   .content {
     padding-top: 20px;
