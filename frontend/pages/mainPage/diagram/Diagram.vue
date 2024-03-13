@@ -16,12 +16,12 @@
     <h3 class="h-sat">вс</h3>
 
     <div
-      v-for="(project, index) in projects"
+      v-for="(task, index) in tasks"
       :class="`t-${index}`"
       :style="`grid-column: sun-morning / mon-night; grid-row: ${index + 1};`"
-      :key="project.id"
-      :project=project
-    >{{ project.title }}</div>
+      :key="task.id"
+      :task=task
+    >{{ task.name }}</div>
 <!-- 
     <div class="t-1" style="grid-column: sun-morning / mon-night;">Прописать тз</div>
     <div class="t-2" style="grid-column: mon-morning / sat-night;">Создать проект</div>
@@ -37,7 +37,7 @@
 <script>
 export default {
   props: {
-    projects: Array,
+    tasks: Array,
   },
 };
 </script>
@@ -121,7 +121,7 @@ h3.h-sat {
   grid-column: 13 / span 2;
 }
 
-/* projects */
+/* tasks */
 .gantt div {
   color: white;
   font-size: 12px;

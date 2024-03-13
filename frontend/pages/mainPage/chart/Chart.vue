@@ -1,23 +1,46 @@
 <template>
-  <Collapse
-    :projects="projects"
-    :apiKey="apiKey"
+  <el-table
+    :data="tasks"
+    border
+    @current-change="handleCurrentChange"
+    style="width: 100%">
+    <el-table-column
+      type="index"
+      label="Номер"
+      width="70">
+    </el-table-column>
+    <el-table-column
+      prop="name"
+      label="Наименование">
+    </el-table-column>
+  </el-table>
+
+  <sidebar
+    ref="sidebar"
+    :task="task"
   />
 </template>
 
 <script>
-import Collapse from './Collapse';
+import Sidebar from './../Sidebar.vue';
 
 export default {
   props: {
-    projects: Array,
-    apiKey: String,
+    tasks: Array,
   },
   data() {
-    return {};
+    return {
+      task: {},
+    };
   },
   components: {
-    Collapse
+    Sidebar,
   },
+  methods: {
+    handleCurrentChange(val) {
+      this.$refs.sidebar.open();
+      this.task = val;
+    },
+  }
 }
 </script>

@@ -1,13 +1,15 @@
 <template>
   <ui-sidebar
     v-model="isSidebarVisible"
-    title="Проект"
+    title="Задание"
     class="sidebar"
     @hide="resetState"
   >
-    <p>Заголовок: {{ project.title }}</p>
-    <p>Начало работы: {{ getDate(project.start_date) }}</p>
-    <p>Завершение работы: {{ getDate(project.finish_date) }}</p>
+    <p>Заголовок: {{ task.name }}</p>
+    <p>Описание: {{ getText(task.description) }}</p>
+    <p>Исполнитель: {{ getProfile(task.responsible_user_ids) }}</p>
+    <p>Начало работы: {{ getDate(task.start_date) }}</p>
+    <p>Завершение работы: {{ getDate(task.finish_date) }}</p>
     <el-button
       size="small"
       @click="closeSidebar"
@@ -21,12 +23,16 @@
 export default {
   props: {
     value: Object,
-    project: Array,
+    task: Array,
   },
   data() {
     return {
       isSidebarVisible: false,
+      profiles: [],
     };
+  },
+  async created() {
+    await this.loadProfiles({});
   },
   watch: {
     value: {
@@ -46,6 +52,9 @@ export default {
     resetState() {
       this.isSidebarVisible = false;
     },
+    async loadProfiles() {
+      this.profiles = await $platform.api.requestRoute('user.api.profile.list', {}, {});
+    },
     getDate(date) {
       if (date !== null) {
         const ymd = date.replace(new RegExp(`T.*`), '').split(`-`);
@@ -54,6 +63,20 @@ export default {
       }
       
       return '';
+    },
+    getProfile(id) {
+      return this.profiles[id].name;
+    },
+    getText(str) {
+      if (str !== null) {
+        const startIndex = str.indexOf('<p>') + 3;
+        const endIndex = str.indexOf('</p>', startIndex);
+        const text = str.substring(startIndex, endIndex);
+
+        return text;
+      }
+      
+      return str;
     },
   },
 };
