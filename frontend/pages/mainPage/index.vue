@@ -19,13 +19,14 @@
               @click="createProject">
               Добавить новый проект
             </el-button>
-            <el-collapse v-model="activeNames" @change="handleChange">
+            <el-collapse v-model="activeNames">
               <el-collapse-item title="Выбрать проект" name="1" style="padding-left: 10px;">
                 <div
                   v-for="project in projects"
                   class="list">
                   <el-button
-                    type="text">
+                    type="text"
+                    @click="changeProject(project.title)">
                     {{ project.title }}
                   </el-button>
                 </div>
@@ -67,7 +68,7 @@
           trigger="click">
             <el-button
               v-for="period in periods"
-              @click="changeCalendar(period.value)"
+              @click="changePeriod(period.value)"
               style="width: 100%; margin-bottom: 3px; margin-left: 0px;">
               {{ period.label }}
             </el-button>
@@ -80,9 +81,52 @@
 
         <el-popover
           placement="bottom"
-          width="100"
-          trigger="click">
-            <p>Создание задачи</p>
+          width="370"
+          trigger="click"
+          v-model="visible">
+          <el-form ref="form" :model="newTask">
+            <el-form-item style="text-align: right; margin: 0;">
+              <el-button
+                type="success"
+                size="mini"
+                @click="createTask()"
+              >
+                <span>Создать</span>
+              </el-button>
+              <i class="el-icon-close" style="margin-left: 15px; padding: 8px 0px;" @click="visible = false"></i>
+            </el-form-item>
+
+            <el-form-item
+              prop="name">
+              <el-input v-model="newTask.name" size="small" placeholder="Название задачи"/>
+            </el-form-item>
+
+            <el-form-item
+              prop="description">
+              <el-input
+                v-model="newTask.description"
+                type="textarea"
+                :rows="2"
+                size="small"
+                placeholder="Описание задачи"/>
+            </el-form-item>
+
+            <el-form-item
+              prop="executor"
+            >
+              <orgschema-user-selector v-model="newTask.executor" :font-size="14" placeholder="Исполнитель" />
+            </el-form-item>
+
+            <el-form-item
+              prop="extension">
+              <el-date-picker
+                v-model="newTask.extension"
+                type="daterange"
+                start-placeholder="Начало"
+                end-placeholder="Конец">
+              </el-date-picker>
+            </el-form-item>
+          </el-form>
           <el-button
             slot="reference"
             icon="el-icon-plus"
@@ -92,19 +136,30 @@
       </el-header>
 
       <el-container
+        v-if="tasks.length == 0"
+        style="margin: 0px 20px;">
+        <p>Нет задач.</p>
+      </el-container>
+
+      <el-container
+        v-else
         style="margin: 0px 20px;">
         <el-aside width="350px">
           <Chart
-          :tasks="tasks"/>
+            :tasks="tasks"
+            :profiles="profiles"/>
         </el-aside>
 
         <el-container>
           <el-header style="height: auto;">
-            <Calendar />
+            <Calendar
+              :currentPeriod="currentPeriod"/>
           </el-header>
 
           <el-main style="padding: 15px;">
-            <Diagram :tasks="tasks" />
+            <Diagram
+              :tasks="tasks"
+              :currentPeriod="currentPeriod"/>
           </el-main>
         </el-container>
       </el-container>
@@ -135,37 +190,44 @@ export default {
   },
   async created() {
     await this.loadProjects({});
+    this.currentProject = this.projects[0].title;
     await this.loadTasks({});
+    await this.loadProfiles({});
   },
   data() {
     return {
-      apiKey: 'eeb845c1-c5f8-4856-b4b0-f29d5cb6ab71',
+      apiKey: '{PLATRUM_API_KEY}',
       dialogVisible: false,
+      visible: false,
       projects: [],
-      currentProject: 'Разработка',
+      currentProject: '',
+      allTasks: [],
       tasks: [],
+      profiles: [],
       periods: [
         {
           label: 'Год',
-          value: 'year',
+          value: '12',
         },
         {
           label: 'Полгода',
-          value: 'half-year',
+          value: '6',
         },
         {
           label: 'Квартал',
-          value: 'quarter',
+          value: '4',
         },
         {
           label: 'Месяц',
-          value: 'month',
+          value: '10',
         },
         {
           label: 'Неделя',
-          value: 'week',
+          value: '7',
         },
       ],
+      currentPeriod: '7',
+      newTask: {},
     };
   },
   methods: {
@@ -194,8 +256,15 @@ export default {
     async loadProjects() {
       this.projects = await $platform.api.requestRoute('plugins.api.storage.select', { entity: 'plugin-gantt.project', key: this.apiKey }, {});
     },
+    changePeriod(value) {
+      this.currentPeriod = value;
+    },
     async loadTasks() {
-      this.tasks = await $platform.api.requestRoute('tasks.api.task.list', {}, {});
+      this.allTasks = await $platform.api.requestRoute('tasks.api.task.list', {}, {});
+      this.tasks = this.allTasks.filter(item => item.diagramma_new == this.currentProject);
+    },
+    async loadProfiles() {
+      this.profiles = await $platform.api.requestRoute('user.api.profile.list', {}, {});
     },
     async createProject() {
       this.dialogVisible = true;
@@ -211,6 +280,10 @@ export default {
         this.$uiNotify.error('Ошибка при сохранении');
         throw e;
       }
+    },
+    changeProject(title) {
+      this.currentProject = title;
+      this.tasks = this.allTasks.filter(item => item.diagramma_new == this.currentProject);
     },
     async deleteProject() {
       await $platform.api.requestRoute('plugins.api.storage.delete', { entity: 'plugin-gantt.project', key: this.apiKey }, { filter: [["title", "=", this.project.title]] });

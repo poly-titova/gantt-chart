@@ -3,19 +3,99 @@
     v-model="isSidebarVisible"
     title="Задание"
     class="sidebar"
+    style="padding: 0px 20px;"
     @hide="resetState"
   >
-    <p>Заголовок: {{ task.name }}</p>
-    <p>Описание: {{ getText(task.description) }}</p>
-    <p>Исполнитель: {{ getProfile(task.responsible_user_ids) }}</p>
-    <p>Начало работы: {{ getDate(task.start_date) }}</p>
-    <p>Завершение работы: {{ getDate(task.finish_date) }}</p>
-    <el-button
-      size="small"
-      @click="closeSidebar"
-    >
-      <span>Закрыть</span>
-    </el-button>
+    <el-row>
+      <el-col :span="8">
+        <el-button
+          size="small"
+          icon="el-icon-share"
+          style="margin: 10px 0px;"
+          @click="">
+          Сделать подзадачей
+        </el-button>
+      </el-col>
+
+      <el-col :span="8">
+        <el-button
+          size="small"
+          icon="el-icon-link"
+          style="margin: 10px 20px;"
+          @click="">
+          Связать задачу
+        </el-button>
+      </el-col>
+
+      <el-col :span="8">
+        <el-button
+          size="small"
+          icon="el-icon-delete"
+          style="margin: 10px 0px 10px 10px;"
+          @click="deleteTask()">
+          Удалить задачу
+        </el-button>
+      </el-col>
+    </el-row>
+
+    <el-form ref="form" :model="item" style="position: relative; height: 100%;">
+      <el-form-item
+        prop="name"
+        label="Название:">
+        <el-input v-model="item.name" size="small"/>
+      </el-form-item>
+
+      <el-form-item
+        prop="description"
+        label="Описание:">
+        <el-input
+          v-model="item.description"
+          type="textarea"
+          :rows="2"
+          size="small"/>
+      </el-form-item>
+
+      <el-form-item
+        label="Исполнитель:"
+        prop="executor"
+      >
+        <orgschema-user-selector v-model="item.executor" :font-size="14" />
+      </el-form-item>
+
+      <el-form-item
+        prop="extension"
+        label="Протяжённость:">
+        <el-date-picker
+          v-model="item.extension"
+          type="daterange"
+          start-placeholder="Начало"
+          end-placeholder="Конец">
+        </el-date-picker>
+      </el-form-item>
+
+      <el-form-item style="position: absolute; bottom: 10px; width: 100%;">
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-button
+              style="position: relative; width: 100%; margin-right: 10px;"
+              @click="close">
+              <span>Отменить</span>
+            </el-button>
+          </el-col>
+
+          <el-col :span="12">
+            <el-button
+              type="success"
+              plain
+              style="position: relative; width: 100%; margin: 0px 10px;"
+              @click="submit"
+            >
+              <span>Сохранить</span>
+            </el-button>
+          </el-col>
+        </el-row>
+      </el-form-item>
+    </el-form>
   </ui-sidebar>
 </template>
 
@@ -23,16 +103,13 @@
 export default {
   props: {
     value: Object,
-    task: Array,
+    apiKey: String,
+    task: Object,
   },
   data() {
     return {
       isSidebarVisible: false,
-      profiles: [],
     };
-  },
-  async created() {
-    await this.loadProfiles({});
   },
   watch: {
     value: {
@@ -42,41 +119,27 @@ export default {
       },
     },
   },
+  computed: {
+    item() {
+      return this.task;
+    }
+  },
   methods: {
     open() {
       this.isSidebarVisible = true;
     },
-    async closeSidebar() {
-      this.resetState();
-    },
-    resetState() {
+    close() {
       this.isSidebarVisible = false;
     },
-    async loadProfiles() {
-      this.profiles = await $platform.api.requestRoute('user.api.profile.list', {}, {});
+    async deleteTask() {
+      response = await $platform.api.requestRoute('tasks.api.task.remove', {key: apiKey }, {
+        "id": this.task.id,
+        "is_edit_further": true,
+      });
     },
-    getDate(date) {
-      if (date !== null) {
-        const ymd = date.replace(new RegExp(`T.*`), '').split(`-`);
-
-        return `${ymd[2]}.${ymd[1]}.${ymd[0]}`;
-      }
-      
-      return '';
-    },
-    getProfile(id) {
-      return this.profiles[id].name;
-    },
-    getText(str) {
-      if (str !== null) {
-        const startIndex = str.indexOf('<p>') + 3;
-        const endIndex = str.indexOf('</p>', startIndex);
-        const text = str.substring(startIndex, endIndex);
-
-        return text;
-      }
-      
-      return str;
+    async submit() {
+      this.$emit('input', this.item);
+      this.close();
     },
   },
 };
@@ -87,14 +150,5 @@ export default {
   top: 0 !important;
   width: 550px;
   background: white;
-
-  .content {
-    padding-top: 20px;
-    padding-right: 30px;
-
-    .text-editor {
-      line-height: 20px;
-    }
-  }
 }
 </style>
