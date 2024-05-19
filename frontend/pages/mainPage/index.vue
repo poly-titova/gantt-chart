@@ -43,11 +43,21 @@
         <h1 class="project-title">{{ currentProject }}</h1>
 
         <el-popover
-          placement="bottom"
+          placement="bottom-start"
           width="300"
           trigger="click">
           <div>
-            <el-input v-model="currentProject"></el-input>
+            <el-input v-model="currentProject" style="margin-bottom: 5px;"></el-input>
+            <button
+              class="bt-menu"
+              @click="openAccessControl()">
+              Управление доступами
+            </button>
+            <button
+              class="bt-menu"
+              @click="openSettingFields()">
+              Настройка полей
+            </button>
             <el-divider></el-divider>
             <el-button
               icon="el-icon-delete"
@@ -89,7 +99,7 @@
               <el-button
                 type="success"
                 size="mini"
-                @click="createTask()"
+                @click="createTask"
               >
                 <span>Создать</span>
               </el-button>
@@ -117,14 +127,8 @@
               <orgschema-user-selector v-model="newTask.executor" :font-size="14" placeholder="Исполнитель" />
             </el-form-item>
 
-            <el-form-item
-              prop="extension">
-              <el-date-picker
-                v-model="newTask.extension"
-                type="daterange"
-                start-placeholder="Начало"
-                end-placeholder="Конец">
-              </el-date-picker>
+            <el-form-item label="Планируемое время:" prop="time_plan">
+              <el-input-number v-model="newTask.time_plan" size="small" />
             </el-form-item>
           </el-form>
           <el-button
@@ -172,6 +176,18 @@
       @show="showDialog"
       :dialogVisible="dialogVisible"
     />
+
+    <AccessControl
+      ref="accessControl"
+      @input="updateAccess"
+      :currentProject="currentProject"
+      :profiles="profiles"
+    />
+
+    <SettingFields
+      ref="settingFields"
+      @input="updateFields"
+    />
   </tasks-layout>
 </template>
 
@@ -180,6 +196,8 @@ import Chart from './chart/Chart.vue';
 import Diagram from './diagram/Diagram.vue';
 import ModalProject from './ModalProject.vue';
 import Calendar from './calendar/Calendar.vue';
+import AccessControl from './AccessControl.vue';
+import SettingFields from './SettingFields.vue';
 
 export default {
   components: {
@@ -187,6 +205,8 @@ export default {
     Chart,
     ModalProject,
     Calendar,
+    AccessControl,
+    SettingFields,
   },
   async created() {
     await this.loadProjects({});
@@ -237,6 +257,12 @@ export default {
     showDialog(item) {
       this.dialogVisible = item;
     },
+    openAccessControl() {
+      this.$refs.accessControl.open();
+    },
+    openSettingFields() {
+      this.$refs.settingFields.open();
+    },
     createDefaultProject() {
       return {
         title: null,
@@ -256,9 +282,6 @@ export default {
     async loadProjects() {
       this.projects = await $platform.api.requestRoute('plugins.api.storage.select', { entity: 'plugin-gantt.project', key: this.apiKey }, {});
     },
-    changePeriod(value) {
-      this.currentPeriod = value;
-    },
     async loadTasks() {
       this.allTasks = await $platform.api.requestRoute('tasks.api.task.list', {}, {});
       this.tasks = this.allTasks.filter(item => item.diagramma_new == this.currentProject);
@@ -266,7 +289,10 @@ export default {
     async loadProfiles() {
       this.profiles = await $platform.api.requestRoute('user.api.profile.list', {}, {});
     },
-    async createProject() {
+    changePeriod(value) {
+      this.currentPeriod = value;
+    },
+    createProject() {
       this.dialogVisible = true;
     },
     async storeProject(item) {
@@ -289,6 +315,31 @@ export default {
       await $platform.api.requestRoute('plugins.api.storage.delete', { entity: 'plugin-gantt.project', key: this.apiKey }, { filter: [["title", "=", this.project.title]] });
       this.$uiNotify.success('Проект удалён');
     },
+    async createTask() {
+      await $platform.api.requestRoute('tasks.api.task.create', {key: this.apiKey}, {
+        "can_edit": true,
+        "category_key": "task",
+        "description": this.newTask.description,
+        "diagramma_new": this.currentProject,
+        "name": this.newTask.name,
+        "owner_user_id": "22086f8b917cd0417b85a85b8b7c32ac",
+        "recurrence_data": {},
+        "relations": [],
+        "responsible_user_ids": [ this.newTask.executor ],
+        "start_date": null,
+        "status_key": "new",
+        "time_plan": this.newTask.time_plan
+      });
+      this.$uiNotify.success('Задание создано');
+      this.visible = false
+      await this.loadTasks({});
+    },
+    async updateAccess() {
+      console.log('success')
+    },
+    async updateFields() {
+      console.log('success')
+    }
   },
 };
 </script>
@@ -308,6 +359,23 @@ export default {
   height: 40px !important;
   padding-top: 12px !important;
   padding-left: 12px !important;
+}
+
+.bt-menu {
+  background-color: #ffffff;
+  border: none;
+  color: #606266;
+  height: 40px;
+  width: 100%;
+  text-align: left;
+  padding-left: 0px;
+  font-size: 14px;
+  line-height: 40px;
+  text-decoration: none;
+}
+
+.bt-menu:hover {
+  background-color: #eef0ff;
 }
 
 .project-title {
