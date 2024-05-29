@@ -32,7 +32,7 @@
           size="small"
           icon="el-icon-delete"
           style="margin: 10px 0px 10px 10px;"
-          @click="deleteTask()">
+          @click="deleteTask">
           Удалить задачу
         </el-button>
       </el-col>
@@ -57,20 +57,17 @@
 
       <el-form-item
         label="Исполнитель:"
-        prop="executor"
+        prop="responsible_user_ids"
       >
-        <orgschema-user-selector v-model="item.executor" :font-size="14" />
+        <orgschema-user-selector v-model="item.responsible_user_ids" :font-size="14" />
       </el-form-item>
 
-      <el-form-item
-        prop="extension"
-        label="Протяжённость:">
-        <el-date-picker
-          v-model="item.extension"
-          type="daterange"
-          start-placeholder="Начало"
-          end-placeholder="Конец">
-        </el-date-picker>
+      <el-form-item label="Планируемое время:" prop="time_plan">
+        <el-input-number v-model="item.time_plan" size="small" />
+      </el-form-item>
+
+      <el-form-item label="Фактическое время:" prop="time_fact">
+        <el-input-number v-model="item.time_fact" size="small" />
       </el-form-item>
 
       <el-form-item style="position: absolute; bottom: 10px; width: 100%;">
@@ -104,41 +101,76 @@ export default {
   props: {
     value: Object,
     apiKey: String,
-    task: Object,
   },
   data() {
     return {
       isSidebarVisible: false,
+      task: {},
+      item: {
+        id: 0,
+        name: '',
+        description: '',
+        responsible_user_ids: [],
+        time_plan: 0,
+        time_fact: 0,
+      }
     };
   },
-  watch: {
-    value: {
-      immediate: true,
-      handler(val) {
-        this.item = $utils.object.clone(val);
-      },
-    },
-  },
-  computed: {
-    item() {
-      return this.task;
-    }
-  },
   methods: {
-    open() {
+    open(task) {
+      this.task = task;
+      this.item = {
+        id: task.id,
+        name: task.name,
+        description: task.description,
+        responsible_user_ids: [...task.responsible_user_ids],
+        time_plan: task.time_plan,
+        time_fact: task.time_fact,
+      };
       this.isSidebarVisible = true;
     },
     close() {
       this.isSidebarVisible = false;
     },
     async deleteTask() {
-      response = await $platform.api.requestRoute('tasks.api.task.remove', {key: apiKey }, {
+      await $platform.api.requestRoute('tasks.api.task.remove', {key: this.apiKey }, {
         "id": this.task.id,
         "is_edit_further": true,
       });
+      this.$uiNotify.error('Задание удалено');
+      this.$emit('load', true);
+      this.close();
     },
     async submit() {
-      this.$emit('input', this.item);
+      let fields = new Object();
+      let fields_old = new Object();
+
+      if (this.task.name !== this.item.name) {
+        fields.name = this.item.name;
+        fields_old.name = this.task.name;
+      }
+
+      if (this.task.description !== this.item.description) {
+        fields.description = this.item.description;
+        fields_old.description = this.task.description;
+      }
+
+      if (this.task.responsible_user_ids !== this.item.responsible_user_ids) {
+        fields.responsible_user_ids = [this.item.responsible_user_ids];
+        fields_old.responsible_user_ids = [...this.task.responsible_user_ids];
+      }
+
+      if (this.task.time_plan !== this.item.time_plan) {
+        fields.time_plan = this.item.time_plan;
+        fields_old.time_plan = this.task.time_plan;
+      }
+
+      if (this.task.time_fact !== this.item.time_fact) {
+        fields.time_fact = this.item.time_fact;
+        fields_old.time_fact = this.task.time_fact;
+      }
+
+      this.$emit('input', this.item, fields, fields_old);
       this.close();
     },
   },
@@ -148,7 +180,7 @@ export default {
 <style lang="less" scoped>
 .sidebar {
   top: 0 !important;
-  width: 550px;
+  width: 650px;
   background: white;
 }
 </style>

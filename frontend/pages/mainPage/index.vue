@@ -148,10 +148,12 @@
       <el-container
         v-else
         style="margin: 0px 20px;">
-        <el-aside width="350px">
+        <el-aside width="357px">
           <Chart
+            @load="loadTasks"
             :tasks="tasks"
-            :profiles="profiles"/>
+            :profiles="profiles"
+            :apiKey="apiKey"/>
         </el-aside>
 
         <el-container>
@@ -284,7 +286,7 @@ export default {
     },
     async loadTasks() {
       this.allTasks = await $platform.api.requestRoute('tasks.api.task.list', {}, {});
-      this.tasks = this.allTasks.filter(item => item.diagramma_new == this.currentProject);
+      this.tasks = this.allTasks.filter(item => item.diagramma_new == this.currentProject).reverse();
     },
     async loadProfiles() {
       this.profiles = await $platform.api.requestRoute('user.api.profile.list', {}, {});
