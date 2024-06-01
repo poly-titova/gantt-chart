@@ -157,12 +157,12 @@
         </el-aside>
 
         <el-container>
-          <el-header style="height: auto;">
+          <!-- <el-header style="height: auto;">
             <Calendar
               :currentPeriod="currentPeriod"/>
-          </el-header>
+          </el-header> -->
 
-          <el-main style="padding: 15px;">
+          <el-main style="padding: 0px 10px !important;">
             <Diagram
               :tasks="tasks"
               :currentPeriod="currentPeriod"/>
@@ -237,11 +237,11 @@ export default {
         },
         {
           label: 'Квартал',
-          value: '4',
+          value: '13',
         },
         {
           label: 'Месяц',
-          value: '10',
+          value: '28',
         },
         {
           label: 'Неделя',
@@ -333,7 +333,8 @@ export default {
         "time_plan": this.newTask.time_plan
       });
       this.$uiNotify.success('Задание создано');
-      this.visible = false
+      this.visible = false;
+      this.newTask = {};
       await this.loadTasks({});
     },
     async updateAccess() {

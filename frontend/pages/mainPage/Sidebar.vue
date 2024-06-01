@@ -8,13 +8,56 @@
   >
     <el-row>
       <el-col :span="8">
-        <el-button
-          size="small"
-          icon="el-icon-share"
-          style="margin: 10px 0px;"
-          @click="">
-          Сделать подзадачей
-        </el-button>
+        <el-popover
+          placement="bottom-start"
+          width="500"
+          trigger="click"
+          v-model="visible">
+          <div>
+            <p style="margin-bottom: 10px; color: #606266; line-height: 1.4; font-size: 14px;">Выберите задачу к которой будет привязана открытая задача:</p>
+
+            <el-form ref="form" :model="soughtTask">
+              <el-form-item prop="id" style="margin-bottom: 10px;">
+                <el-select
+                  v-model="soughtTask.id"
+                  filterable
+                  placeholder="Найти задачу"
+                  style="width: 474px !important;">
+                  <el-option
+                    v-for="selectTask in tasks"
+                    :key="selectTask.id"
+                    :label="selectTask.name"
+                    :value="selectTask.id">
+                  </el-option>
+                </el-select>
+              </el-form-item>
+
+              <el-form-item style="margin: 0px;">
+                <el-button
+                  type="success"
+                  size="mini"
+                  @click="makeTask"
+                >
+                  <span>Сделать подзадачей</span>
+                </el-button>
+
+                <el-button
+                  size="mini"
+                  @click="visible = false"
+                >
+                  <span>Отменить</span>
+                </el-button>
+              </el-form-item>
+            </el-form>
+          </div>
+          <el-button
+            slot="reference"
+            size="small"
+            icon="el-icon-share"
+            style="margin: 10px 0px;">
+            Сделать подзадачей
+          </el-button>
+        </el-popover>
       </el-col>
 
       <el-col :span="8">
@@ -101,10 +144,13 @@ export default {
   props: {
     value: Object,
     apiKey: String,
+    tasks: Array,
   },
   data() {
     return {
       isSidebarVisible: false,
+      visible: false,
+      soughtTask: {},
       task: {},
       item: {
         id: 0,
@@ -113,6 +159,7 @@ export default {
         responsible_user_ids: [],
         time_plan: 0,
         time_fact: 0,
+        parent_id: 0,
       }
     };
   },
@@ -126,6 +173,7 @@ export default {
         responsible_user_ids: [...task.responsible_user_ids],
         time_plan: task.time_plan,
         time_fact: task.time_fact,
+        parent_id: task.parent_id,
       };
       this.isSidebarVisible = true;
     },
@@ -140,6 +188,18 @@ export default {
       this.$uiNotify.error('Задание удалено');
       this.$emit('load', true);
       this.close();
+    },
+    async makeTask() {
+      await $platform.api.requestRoute('tasks.api.task.update', { key: this.apiKey }, {
+        "id": this.item.id,
+        "fields": { parent_id: this.soughtTask.id },
+        "fields_old": { parent_id: this.item.parent_id },
+        "is_edit_further": null,
+        "start_date_from_plan": null,
+      });
+      this.$uiNotify.success('Задание отредактированно');
+      this.$emit('load', true);
+      this.visible = false;
     },
     async submit() {
       let fields = new Object();
@@ -156,7 +216,7 @@ export default {
       }
 
       if (this.task.responsible_user_ids !== this.item.responsible_user_ids) {
-        fields.responsible_user_ids = [this.item.responsible_user_ids];
+        fields.responsible_user_ids = this.item.responsible_user_ids.length == 0 ? this.item.responsible_user_ids : [this.item.responsible_user_ids];
         fields_old.responsible_user_ids = [...this.task.responsible_user_ids];
       }
 

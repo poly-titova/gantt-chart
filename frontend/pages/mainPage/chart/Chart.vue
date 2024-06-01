@@ -45,7 +45,7 @@
       @input="updateTask"
       @load="onload"
       :apiKey="apiKey"
-      :profiles="profiles"
+      :tasks="tasks"
     />
   </div>
 </template>
