@@ -1,20 +1,54 @@
 <template>
   <div class="gantt">
-    <div class="gantt-row gantt-period" :style="{'grid-template-columns': `repeat(${currentPeriod}, 1fr)`}">
-      <span v-for="(day, index) in days" :key="index">{{ index + 1 }}</span>
+    <div
+      v-if="currentPeriod==10"
+      class="gantt-row gantt-period"
+      :style="{'grid-template-columns': `repeat(${dateColumns.length}, ${dateColumns.length < 10 ? '1fr' : '90px'})`}">
+      <span v-for="(day, index) in dateColumns" :key="index">{{ weekdaysName(day) }}</span>
     </div>
 
-    <div class="gantt-row gantt-lines" :style="{'grid-template-columns': `repeat(${currentPeriod}, 1fr)`}">
-      <span v-for="(day, index) in days" :key="index"></span>
+    <div
+      v-if="currentPeriod==10"
+      class="gantt-row gantt-lines"
+      :style="{'grid-template-columns': `repeat(${dateColumns.length}, ${dateColumns.length < 10 ? '1fr' : '90px'})`}">
+      <span v-for="(day, index) in dateColumns" :key="index"></span>
+    </div>
+
+    <div
+      v-if="currentPeriod==15"
+      class="gantt-row gantt-period"
+      :style="{'grid-template-columns': `repeat(${countWeeks.length}, ${countWeeks.length < 15 ? '1fr' : '60px'})`}">
+      <span v-for="(week, index) in countWeeks" :key="index">{{ week.weekName }}</span>
+    </div>
+
+    <div
+      v-if="currentPeriod==15"
+      class="gantt-row gantt-lines"
+      :style="{'grid-template-columns': `repeat(${countWeeks.length}, ${countWeeks.length < 15 ? '1fr' : '60px'})`}">
+      <span v-for="(week, index) in countWeeks" :key="index"></span>
+    </div>
+
+    <div
+      v-if="currentPeriod==12"
+      class="gantt-row gantt-period"
+      :style="{'grid-template-columns': `repeat(${countMonths.length}, ${countMonths.length < 12 ? '1fr' : '72px'})`}">
+      <span v-for="(month, index) in countMonths" :key="index">{{ month.monthName }}</span>
+    </div>
+
+    <div
+      v-if="currentPeriod==12"
+      class="gantt-row gantt-lines"
+      :style="{'grid-template-columns': `repeat(${countMonths.length}, ${countMonths.length < 12 ? '1fr' : '72px'})`}">
+      <span v-for="(month, index) in countMonths" :key="index"></span>
     </div>
 
     <div
       v-for="(task) in dataTable"
       :key="task.id"
       class="gantt-row"
-      :style="{'grid-template-columns': `repeat(${countColumn}, 1fr)`}"
+      :style="{'grid-template-columns': `repeat(${countColumn}, 120px)`}"
       >
-      <ul class="gantt-row-bars" :style="{'grid-template-columns': `repeat(${currentPeriod}, 1fr)`}">
+      <ul class="gantt-row-bars" :style="{'grid-template-columns': `repeat(${currentPeriod}, ${widthColumn}px)`}">
         <li
           class="task-parent"
           :key="task.id"
@@ -41,6 +75,7 @@
 export default {
   props: {
     tasks: Array,
+    dateColumns: Array,
     currentPeriod: Number,
   },
   data() {
@@ -53,22 +88,101 @@ export default {
       return this.arrTasks;
     },
     countColumn() {
-      if (this.currentPeriod == 6 || this.currentPeriod == 12) {
+      if (this.currentPeriod == 12) {
         return 4;
-      } else if (this.currentPeriod == 13) {
+      } else if (this.currentPeriod == 15) {
         return 7;
       } else {
         return 1;
       }
     },
-    days() {
-      return Array.from({ length: this.currentPeriod }, (_, i) => i);
+    widthColumn() {
+      if (this.currentPeriod == 10) {
+        return 90;
+      } else if (this.currentPeriod == 15) {
+        return 60;
+      } else {
+        return 72;
+      }
+    },
+    countWeeks() {
+      let arrWeeks = [];
+      let week = [];
+      let countDay = 1;
+
+      this.dateColumns.map(date => {
+        date = new Date(date).toLocaleString('ru',
+          {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          });
+
+        if (countDay == 8) {
+          arrWeeks.push({
+            weekName: `${week[0].slice(0, -8)}-${week[week.length - 1].slice(0, -8)}`,
+            week: week,
+          });
+
+          week = [];
+          countDay = 1;
+        }
+
+        week.push(date);
+
+        countDay = countDay + 1;
+      });
+
+      if (week.length !== 0) {
+        arrWeeks.push({
+          weekName: `${week[0].slice(0, -8)} - ${week[week.length - 1].slice(0, -8)}`,
+          week: week,
+        });
+
+        week = [];
+      }
+
+      return arrWeeks;
+    },
+    countMonths() {
+      let arrMonths = [];
+      let month = [];
+      let startMonth = (this.dateColumns[0]).slice(-2);
+
+      this.dateColumns.map(date => {
+        if (startMonth == `${date}`.slice(-2) && date !== this.dateColumns[0]) {
+          arrMonths.push({
+            monthName: `${month[0].slice(0, -8)} - ${month[month.length - 1].slice(0, -8)}`,
+            month: month,
+          });
+
+          month = [];
+        }
+
+        month.push(new Date(date).toLocaleString('ru',
+          {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          }));
+      });
+
+      if (month.length !== 0) {
+        arrMonths.push({
+          monthName: `${month[0].slice(0, -8)} - ${month[month.length - 1].slice(0, -8)}`,
+          month: month
+        });
+
+        month = [];
+      }
+
+      return arrMonths;
     },
     dataTable() {
       let tasksChildfree = this.tasks.filter(task => task.parent_data == null);
       tasksChildfree.map((task) => {
         let arrChildren = [];
-        if (task.checklist_items.lenght != Array(0)) {
+        if (task.checklist_items.length != Array(0)) {
           task.checklist_items.map((item) => {
             let childrenTask = this.tasks.find(arr => arr.id == item.linked_task_id);
             arrChildren.push(childrenTask);
@@ -84,13 +198,21 @@ export default {
     showTasks(id) {
       if (this.arrTasks.indexOf(id) == -1) {
         this.arrTasks.push(id)
-        console.log('add', this.arrTasks)
         return this.arrTasks;
       } else {
-        console.log(this.arrTasks.filter(item => item !== id))
         return this.arrTasks = this.arrTasks.filter(item => item !== id);
       }
-    }
+    },
+    weekdaysName(day) {
+      const weekdays = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+      const date = new Date(day).toLocaleString('ru',
+        {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
+      return `${weekdays[(new Date(day)).getDay()]}, ${date}`.slice(0, -8);
+    },
   }
 };
 </script>
@@ -100,7 +222,7 @@ export default {
   display: grid;
   border: 1px solid #EBEEF5;
   position: relative;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .gantt-row {

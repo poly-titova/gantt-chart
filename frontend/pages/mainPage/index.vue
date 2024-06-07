@@ -26,7 +26,7 @@
                   class="list">
                   <el-button
                     type="text"
-                    @click="changeProject(project.title)">
+                    @click="changeProject(project)">
                     {{ project.title }}
                   </el-button>
                 </div>
@@ -40,14 +40,14 @@
           ></el-button>
         </el-popover>
 
-        <h1 class="project-title">{{ currentProject }}</h1>
+        <h1 class="project-title">{{ currentProject.title }}</h1>
 
         <el-popover
           placement="bottom-start"
           width="300"
           trigger="click">
           <div>
-            <el-input v-model="currentProject" style="margin-bottom: 5px;"></el-input>
+            <el-input v-model="currentProject.title" style="margin-bottom: 5px;"></el-input>
             <button
               class="bt-menu"
               @click="openAccessControl()">
@@ -157,15 +157,12 @@
         </el-aside>
 
         <el-container>
-          <!-- <el-header style="height: auto;">
-            <Calendar
-              :currentPeriod="currentPeriod"/>
-          </el-header> -->
-
           <el-main style="padding: 0px 10px !important;">
             <Diagram
               :tasks="tasks"
-              :currentPeriod="currentPeriod"/>
+              :dateColumns="dateColumns"
+              :currentPeriod="currentPeriod"
+              />
           </el-main>
         </el-container>
       </el-container>
@@ -197,7 +194,6 @@
 import Chart from './chart/Chart.vue';
 import Diagram from './diagram/Diagram.vue';
 import ModalProject from './ModalProject.vue';
-import Calendar from './calendar/Calendar.vue';
 import AccessControl from './AccessControl.vue';
 import SettingFields from './SettingFields.vue';
 
@@ -206,13 +202,12 @@ export default {
     Diagram,
     Chart,
     ModalProject,
-    Calendar,
     AccessControl,
     SettingFields,
   },
   async created() {
     await this.loadProjects({});
-    this.currentProject = this.projects[0].title;
+    this.currentProject = this.projects[0];
     await this.loadTasks({});
     await this.loadProfiles({});
   },
@@ -222,35 +217,43 @@ export default {
       dialogVisible: false,
       visible: false,
       projects: [],
-      currentProject: '',
+      currentProject: {},
+      arrDate: [],
       allTasks: [],
       tasks: [],
       profiles: [],
       periods: [
         {
-          label: 'Год',
+          label: 'По месяцам',
           value: '12',
         },
         {
-          label: 'Полгода',
-          value: '6',
+          label: 'По неделям',
+          value: '15',
         },
         {
-          label: 'Квартал',
-          value: '13',
-        },
-        {
-          label: 'Месяц',
-          value: '28',
-        },
-        {
-          label: 'Неделя',
-          value: '7',
+          label: 'По дням',
+          value: '10',
         },
       ],
-      currentPeriod: '7',
+      currentPeriod: '10',
       newTask: {},
     };
+  },
+  computed: {
+    dateColumns() {
+      let startDate = new Date(this.currentProject.start_date);
+      let finishDate = new Date(this.currentProject.finish_date);
+
+      function pad(s){ return ('00' + s).slice(-2); }
+
+      while(startDate.getTime() != finishDate.getTime()) {
+        this.arrDate.push('' + startDate.getFullYear() + '-' + pad(startDate.getMonth()+1) + '-' + pad(startDate.getDate()));
+        startDate.setDate(startDate.getDate() + 1);
+      }
+
+      return this.arrDate;
+    },
   },
   methods: {
     handleModalHide() {
@@ -286,7 +289,7 @@ export default {
     },
     async loadTasks() {
       this.allTasks = await $platform.api.requestRoute('tasks.api.task.list', {}, {});
-      this.tasks = this.allTasks.filter(item => item.diagramma_new == this.currentProject).reverse();
+      this.tasks = this.allTasks.filter(item => item.diagramma_new == this.currentProject.title).reverse();
     },
     async loadProfiles() {
       this.profiles = await $platform.api.requestRoute('user.api.profile.list', {}, {});
@@ -309,9 +312,10 @@ export default {
         throw e;
       }
     },
-    changeProject(title) {
-      this.currentProject = title;
-      this.tasks = this.allTasks.filter(item => item.diagramma_new == this.currentProject);
+    changeProject(project) {
+      this.arrDate = [];
+      this.currentProject = project;
+      this.tasks = this.allTasks.filter(item => item.diagramma_new == this.project.title);
     },
     async deleteProject() {
       await $platform.api.requestRoute('plugins.api.storage.delete', { entity: 'plugin-gantt.project', key: this.apiKey }, { filter: [["title", "=", this.project.title]] });
@@ -322,7 +326,7 @@ export default {
         "can_edit": true,
         "category_key": "task",
         "description": this.newTask.description,
-        "diagramma_new": this.currentProject,
+        "diagramma_new": this.currentProject.title,
         "name": this.newTask.name,
         "owner_user_id": "22086f8b917cd0417b85a85b8b7c32ac",
         "recurrence_data": {},
