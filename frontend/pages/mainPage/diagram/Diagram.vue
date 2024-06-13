@@ -1,68 +1,86 @@
 <template>
-  <div class="gantt">
+  <div class="gantt" style="position: relative; width: 100%">
     <div
-      v-if="currentPeriod==10"
       class="gantt-row gantt-period"
-      :style="{'grid-template-columns': `repeat(${dateColumns.length}, ${dateColumns.length < 10 ? '1fr' : '90px'})`}">
-      <span v-for="(day, index) in dateColumns" :key="index">{{ weekdaysName(day) }}</span>
+      :style="{
+        'grid-template-columns': `${setGrid}`,
+      }"
+    >
+      <span v-for="(el, index) in currentView" :key="index">{{
+        currentPeriod == 10 ? weekdaysName(el) : el.name
+      }}</span>
     </div>
 
     <div
-      v-if="currentPeriod==10"
       class="gantt-row gantt-lines"
-      :style="{'grid-template-columns': `repeat(${dateColumns.length}, ${dateColumns.length < 10 ? '1fr' : '90px'})`}">
-      <span v-for="(day, index) in dateColumns" :key="index"></span>
+      :class="[currentPeriod == 10 || currentPeriod == 15 ? 'border' : '']"
+      :style="{
+        'grid-template-columns': `${setGrid}`,
+      }"
+    >
+      <span v-for="el in currentView" :key="el"></span>
     </div>
 
     <div
-      v-if="currentPeriod==15"
-      class="gantt-row gantt-period"
-      :style="{'grid-template-columns': `repeat(${countWeeks.length}, ${countWeeks.length < 15 ? '1fr' : '60px'})`}">
-      <span v-for="(week, index) in countWeeks" :key="index">{{ week.weekName }}</span>
-    </div>
-
-    <div
-      v-if="currentPeriod==15"
-      class="gantt-row gantt-lines"
-      :style="{'grid-template-columns': `repeat(${countWeeks.length}, ${countWeeks.length < 15 ? '1fr' : '60px'})`}">
-      <span v-for="(week, index) in countWeeks" :key="index"></span>
-    </div>
-
-    <div
-      v-if="currentPeriod==12"
-      class="gantt-row gantt-period"
-      :style="{'grid-template-columns': `repeat(${countMonths.length}, ${countMonths.length < 12 ? '1fr' : '72px'})`}">
-      <span v-for="(month, index) in countMonths" :key="index">{{ month.monthName }}</span>
-    </div>
-
-    <div
-      v-if="currentPeriod==12"
-      class="gantt-row gantt-lines"
-      :style="{'grid-template-columns': `repeat(${countMonths.length}, ${countMonths.length < 12 ? '1fr' : '72px'})`}">
-      <span v-for="(month, index) in countMonths" :key="index"></span>
-    </div>
-
-    <div
-      v-for="(task) in dataTable"
+      v-for="task in dataTable"
       :key="task.id"
       class="gantt-row"
-      :style="{'grid-template-columns': `repeat(${countColumn}, 120px)`}"
+      :style="{ 'grid-template-columns': `${setGrid}` }"
+    >
+      <ul class="gantt-row-bars">
+        <li
+          :key="task.id"
+          :style="{
+            'grid-column': `1, 1fr`,
+            'min-height': '26px',
+          }"
+          @click="showTasks(task.id)"
+        >
+          <ul v-if="visibleTasks.indexOf(task.id) != -1" class="gantt-row-bars">
+            <li
+              v-for="child in task.children"
+              :key="child.id"
+              :style="{
+                'grid-column': `1, 1fr`,
+                'min-height': '26px',
+                position: 'relative',
+                cursor: 'pointer',
+              }"
+            ></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+
+    <div class="gantt-bars" style="position: absolute; top: 46px; width: 100%">
+      <ul
+        v-for="task in dataTable"
+        :key="task.id"
+        style="display: grid; width: 100%"
+        class="gantt-row-bars"
+        :style="{ 'grid-template-columns': `${setGridBar}` }"
       >
-      <ul class="gantt-row-bars" :style="{'grid-template-columns': `repeat(${currentPeriod}, ${widthColumn}px)`}">
         <li
           class="task-parent"
           :key="task.id"
-          :style="{'grid-column': `1/${currentPeriod == 6 || currentPeriod == 12 ? Math.round(Number(task.time_plan)/7) + 1 : Number(task.time_plan) + 1}`}"
+          :style="{
+            'grid-column': `${setGridRow(task)}`,
+          }"
           @click="showTasks(task.id)"
         >
           <ul
             v-if="visibleTasks.indexOf(task.id) != -1"
-            class="gantt-row-bars">
+            style="display: grid; width: 100%"
+            class="gantt-row-bars"
+            :style="{ 'grid-template-columns': `${setGridBarChild(task)}` }"
+          >
             <li
-              v-for="(child) in task.children"
+              v-for="child in task.children"
               class="task-child"
               :key="child.id"
-              :style="{'grid-column': `1/${currentPeriod == 6 || currentPeriod == 12 ? Math.round(Number(child.time_plan)/7) + 1 : Number(child.time_plan) + 1}`}"
+              :style="{
+                'grid-column': `${setGridRowChild(task, child)}`,
+              }"
             ></li>
           </ul>
         </li>
@@ -77,6 +95,7 @@ export default {
     tasks: Array,
     dateColumns: Array,
     currentPeriod: Number,
+    startDate: String,
   },
   data() {
     return {
@@ -87,40 +106,78 @@ export default {
     visibleTasks() {
       return this.arrTasks;
     },
-    countColumn() {
-      if (this.currentPeriod == 12) {
-        return 4;
-      } else if (this.currentPeriod == 15) {
-        return 7;
-      } else {
-        return 1;
-      }
+    setGrid() {
+      let result = "";
+      if (this.currentPeriod == 10)
+        result = `repeat(${this.dateColumns.length}, ${
+          this.dateColumns.length < 10 ? "1fr" : "90px"
+        })`;
+      else if (this.currentPeriod == 15)
+        result = `repeat(${this.countWeeks.length}, ${
+          this.countWeeks.length < 15 ? "1fr" : "60px"
+        })`;
+      else
+        result = `repeat(${this.countMonths.length}, ${
+          this.countMonths.length < 12 ? "1fr" : "72px"
+        })`;
+
+      return result;
     },
-    widthColumn() {
-      if (this.currentPeriod == 10) {
-        return 90;
-      } else if (this.currentPeriod == 15) {
-        return 60;
+    setGridBar() {
+      let result = "";
+      let lenDays = this.dateColumns.length;
+      if (this.currentPeriod == 10)
+        result = `repeat(${lenDays}, ${lenDays < 10 ? "1fr" : "90px"})`;
+      else if (this.currentPeriod == 15) {
+        let quitDays = lenDays % 7;
+        if (quitDays === 0) {
+          result = `repeat(${lenDays - quitDays}, ${
+            this.countWeeks.length < 15 ? "1fr" : "9px"
+          })`;
+        } else {
+          let percent = Math.floor(100 / (this.countWeeks.length * quitDays));
+          result = `repeat(${lenDays - quitDays}, ${
+            this.countWeeks.length < 15 ? "1fr" : "9px"
+          }) repeat(${quitDays}, ${percent}%)`;
+        }
       } else {
-        return 72;
+        let quitDays = lenDays % 7;
+        if (quitDays === 0) {
+          result = `repeat(${lenDays - quitDays}, ${
+            this.countMonths.length < 15 ? "1fr" : "9px"
+          })`;
+        } else {
+          let percent = Math.floor(100 / (this.countWeeks.length * quitDays));
+          result = `repeat(${lenDays - quitDays}, ${
+            this.countMonths.length < 15 ? "1fr" : "9px"
+          }) repeat(${quitDays}, ${percent}%)`;
+        }
+
+        /*result = `repeat(${lenDays}, ${
+          this.countMonths.length < 12 ? "1fr" : "2px" // - для отображения когда 30 дней распределены равномерно
+        })`;*/
       }
+      console.log(result);
+      return result;
     },
     countWeeks() {
       let arrWeeks = [];
       let week = [];
       let countDay = 1;
 
-      this.dateColumns.map(date => {
-        date = new Date(date).toLocaleString('ru',
-          {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-          });
+      this.dateColumns.map((date) => {
+        date = new Date(date).toLocaleString("ru", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
 
         if (countDay == 8) {
           arrWeeks.push({
-            weekName: `${week[0].slice(0, -8)}-${week[week.length - 1].slice(0, -8)}`,
+            name: `${week[0].slice(0, -8)}-${week[week.length - 1].slice(
+              0,
+              -8
+            )}`,
             week: week,
           });
 
@@ -135,7 +192,10 @@ export default {
 
       if (week.length !== 0) {
         arrWeeks.push({
-          weekName: `${week[0].slice(0, -8)} - ${week[week.length - 1].slice(0, -8)}`,
+          name: `${week[0].slice(0, -8)} - ${week[week.length - 1].slice(
+            0,
+            -8
+          )}`,
           week: week,
         });
 
@@ -147,30 +207,37 @@ export default {
     countMonths() {
       let arrMonths = [];
       let month = [];
-      let startMonth = (this.dateColumns[0]).slice(-2);
+      let startMonth = this.dateColumns[0].slice(-2);
 
-      this.dateColumns.map(date => {
+      this.dateColumns.map((date) => {
         if (startMonth == `${date}`.slice(-2) && date !== this.dateColumns[0]) {
           arrMonths.push({
-            monthName: `${month[0].slice(0, -8)} - ${month[month.length - 1].slice(0, -8)}`,
+            name: `${month[0].slice(0, -8)} - ${month[month.length - 1].slice(
+              0,
+              -8
+            )}`,
             month: month,
           });
 
           month = [];
         }
 
-        month.push(new Date(date).toLocaleString('ru',
-          {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-          }));
+        month.push(
+          new Date(date).toLocaleString("ru", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })
+        );
       });
 
       if (month.length !== 0) {
         arrMonths.push({
-          monthName: `${month[0].slice(0, -8)} - ${month[month.length - 1].slice(0, -8)}`,
-          month: month
+          name: `${month[0].slice(0, -8)} - ${month[month.length - 1].slice(
+            0,
+            -8
+          )}`,
+          month: month,
         });
 
         month = [];
@@ -179,12 +246,16 @@ export default {
       return arrMonths;
     },
     dataTable() {
-      let tasksChildfree = this.tasks.filter(task => task.parent_data == null);
+      let tasksChildfree = this.tasks.filter(
+        (task) => task.parent_data == null
+      );
       tasksChildfree.map((task) => {
         let arrChildren = [];
         if (task.checklist_items.length != Array(0)) {
           task.checklist_items.map((item) => {
-            let childrenTask = this.tasks.find(arr => arr.id == item.linked_task_id);
+            let childrenTask = this.tasks.find(
+              (arr) => arr.id == item.linked_task_id
+            );
             arrChildren.push(childrenTask);
           });
           task.children = arrChildren;
@@ -192,47 +263,70 @@ export default {
       });
 
       return tasksChildfree;
-    }
+    },
+    currentView() {
+      let array = [];
+      if (this.currentPeriod == 10) array = this.dateColumns;
+      else if (this.currentPeriod == 15) array = this.countWeeks;
+      else array = this.countMonths;
+      return array;
+    },
   },
   methods: {
+    setGridRow(task) {
+      const startDate = new Date(this.startDate);
+      const date = new Date(task.start_date ?? this.startDate);
+      const timeDifference = Math.abs(date - startDate);
+      let left = Math.ceil(timeDifference / (1000 * 60 * 60 * 24));
+      return `${left + 1}/${left + 1 + Number(task.time_plan)}`;
+    },
+    setGridBarChild(task) {
+      return `repeat(${task.time_plan}, 1fr)`;
+    },
+    setGridRowChild(task, child) {
+      const startDate = new Date(task.start_date ?? this.startDate);
+      const date = new Date(child.start_date ?? this.startDate);
+      const timeDifference = Math.abs(date - startDate);
+      let left = Math.ceil(timeDifference / (1000 * 60 * 60 * 24));
+      return `${left + 1}/${left + 1 + Number(child.time_plan)}`;
+    },
     showTasks(id) {
       if (this.arrTasks.indexOf(id) == -1) {
-        this.arrTasks.push(id)
+        this.arrTasks.push(id);
         return this.arrTasks;
       } else {
-        return this.arrTasks = this.arrTasks.filter(item => item !== id);
+        return (this.arrTasks = this.arrTasks.filter((item) => item !== id));
       }
     },
     weekdaysName(day) {
-      const weekdays = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
-      const date = new Date(day).toLocaleString('ru',
-        {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric'
-        });
-      return `${weekdays[(new Date(day)).getDay()]}, ${date}`.slice(0, -8);
+      const weekdays = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+      const date = new Date(day).toLocaleString("ru", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+      return `${weekdays[new Date(day).getDay()]}, ${date}`.slice(0, -8);
     },
-  }
+  },
 };
 </script>
 
 <style>
 .gantt {
   display: grid;
-  border: 1px solid #EBEEF5;
+  border: 1px solid #ebeef5;
   position: relative;
   overflow: auto;
 }
 
 .gantt-row {
   display: grid;
-  border-bottom: 1px solid #EBEEF5;
+  border-bottom: 1px solid #ebeef5;
 }
 
 .gantt-period {
   color: #909399;
-  border-bottom: 1px solid #EBEEF5;
+  border-bottom: 1px solid #ebeef5;
 }
 
 .gantt-lines {
@@ -242,7 +336,7 @@ export default {
   background-color: transparent;
 }
 
-.gantt-period>span {
+.gantt-period > span {
   text-align: center;
   font-size: 13px;
   align-self: center;
@@ -250,9 +344,9 @@ export default {
   padding: 15px 0;
 }
 
-.gantt-lines>span {
+.gantt-lines.border > span {
   display: block;
-  border-right: 1px solid #EBEEF5;
+  border-right: 1px solid #ebeef5;
 }
 
 .gantt-row-bars {
@@ -260,6 +354,8 @@ export default {
   display: grid;
   padding: 11px 0;
   margin: 0;
+  grid-gap: 0;
+  width: 100%;
   grid-gap: 10px 0;
 }
 
@@ -274,7 +370,7 @@ export default {
 
 .task-child {
   min-height: 26px;
-  background-color: #409EFF;
+  background-color: #409eff;
   overflow: hidden;
   position: relative;
   cursor: pointer;
