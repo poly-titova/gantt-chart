@@ -167,6 +167,7 @@
               :dateColumns="dateColumns"
               :currentPeriod="currentPeriod"
               :startDate="currentProject.start_date"
+              :endDate="currentProject.finish_date"
             />
           </el-main>
         </el-container>
@@ -286,7 +287,6 @@ export default {
           "-" +
           pad(finishDate.getDate())
       );
-
       return this.arrDate;
     },
   },
@@ -394,7 +394,7 @@ export default {
       const taskStart = new Date(this.newTask.start_date);
 
       const taskEnd = new Date(taskStart);
-      taskEnd.setDate(taskEnd.getDate() + Number(this.newTask.time_plan));
+      taskEnd.setDate(taskEnd.getDate() + Number(this.newTask.time_plan) - 1);
 
       if (projectEnd < taskEnd) {
         this.$message.error("Ошибка");
