@@ -166,7 +166,7 @@ export default {
       } else {
         let lenPx = `${Math.floor(72 / 31)}px`; // 72px / 31 days
         switch (this.countMonths.length) {
-          case 0:
+          case 1:
             result = `repeat(${lenDays}, ${
               this.countMonths.length < 15 ? "1fr" : lenPx
             })`;
