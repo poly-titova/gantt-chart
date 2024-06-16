@@ -35,11 +35,7 @@
           }"
           @click="showTasks(task.id)"
         >
-          <ul
-            v-if="visibleTasks.indexOf(task.id) != -1"
-            class="gantt-row-bars"
-            :style="{ 'grid-template-columns': `${setGridBarChild(task)}` }"
-          >
+          <ul v-if="visibleTasks.indexOf(task.id) != -1" class="gantt-row-bars">
             <li
               v-for="child in task.children"
               :key="child.id"
