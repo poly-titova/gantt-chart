@@ -103,7 +103,7 @@
         />
       </el-form-item>
 
-      <el-form-item label="Исполнитель:" prop="responsible_user_ids">
+      <el-form-item v-if="item.type == 'project'" label="Исполнитель:" prop="responsible_user_ids">
         <orgschema-user-selector
           v-model="item.responsible_user_ids"
           :font-size="14"
@@ -114,19 +114,21 @@
         <el-input-number v-model="item.time_plan" size="small" />
       </el-form-item>
 
-      <el-form-item label="Фактическое время:" prop="time_fact">
-        <el-input-number v-model="item.time_fact" size="small" />
-      </el-form-item>
+      <div v-if="item.type == 'project'">
+        <el-form-item label="Фактическое время:" prop="time_fact">
+          <el-input-number v-model="item.time_fact" size="small" />
+        </el-form-item>
 
-      <el-form-item label="Начало задачи:" prop="start_time">
-        <el-date-picker
-          v-model="item.start_date"
-          @change="handleDateChange"
-          placeholder="Выберите дату"
-        />
-      </el-form-item>
+        <el-form-item label="Начало задачи:" prop="start_date">
+          <el-date-picker
+            v-model="item.start_date"
+            @change="handleDateChange"
+            placeholder="Выберите дату"
+          />
+        </el-form-item>
+      </div>
 
-      <el-form-item style="position: absolute; bottom: 10px; width: 100%">
+      <el-form-item style="margin-top: 20px; margin-bottom: 10px; width: 100%">
         <el-row :gutter="10">
           <el-col :span="12">
             <el-button
@@ -160,6 +162,7 @@ export default {
     apiKey: String,
     tasks: Array,
     currentProject: Object,
+    profiles: Array,
   },
   data() {
     return {
@@ -191,17 +194,18 @@ export default {
         this.$message.error("Эта дата недоступна для выбора.");
       } else this.prevStartDate = this.item.start_date;
     },
-    open(task) {
+    async open(task) {
       this.task = task;
       this.item = {
         id: task.id,
         name: task.name,
         description: task.description,
-        responsible_user_ids: [...task.responsible_user_ids],
+        responsible_user_ids: task.responsible_user_ids ? [...task.responsible_user_ids] : [],
         time_plan: task.time_plan,
-        time_fact: task.time_fact,
+        time_fact: task.time_fact ? task.time_fact : 0,
+        type: task.type ? task.type : 'project',
         parent_id: task.parent_id,
-        start_date: task.start_date,
+        start_date: task.start_date ? task.start_date : 0,
       };
       this.isSidebarVisible = true;
       this.prevStartDate = task.start_date;

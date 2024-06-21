@@ -17,7 +17,7 @@
         'grid-template-columns': `${setGrid}`,
       }"
     >
-      <span v-for="el in currentView" :key="el"></span>
+      <span v-for="el in currentView" :key="el" :style="{ 'background-color': `${new Date(el).getDay() == 0 || new Date(el).getDay() == 6 ? '#9093991c' : ''}` }"></span>
     </div>
 
     <div

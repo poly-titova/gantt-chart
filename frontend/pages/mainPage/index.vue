@@ -10,7 +10,7 @@
 
     <el-container v-else>
       <el-header>
-        <el-popover placement="bottom" width="300" trigger="click">
+        <el-popover placement="bottom-start" width="300" trigger="click">
           <div>
             <el-button
               size="small"
@@ -20,15 +20,36 @@
             >
               Добавить новый проект
             </el-button>
-            <el-collapse v-model="activeNames">
+            <el-collapse v-model="activeProjects">
               <el-collapse-item
                 title="Выбрать проект"
                 name="1"
                 style="padding-left: 10px"
               >
                 <div v-for="project in projects" class="list">
-                  <el-button type="text" @click="changeProject(project)">
+                  <el-button type="text" @click="changeView(project)">
                     {{ project.title }}
+                  </el-button>
+                </div>
+              </el-collapse-item>
+            </el-collapse>
+
+            <el-button
+              size="small"
+              icon="el-icon-plus"
+              style="margin: 10px 0px;"
+              @click="createPattern">
+              Создать шаблон проекта
+            </el-button>
+            <el-collapse v-model="activePatterns" v-if="patterns.length !== 0">
+              <el-collapse-item
+                title="Выбрать шаблон"
+                name="1"
+                style="padding-left: 10px"
+              >
+                <div v-for="pattern in patterns" class="list">
+                  <el-button type="text" @click="changeView(pattern)">
+                    {{ pattern.title }}
                   </el-button>
                 </div>
               </el-collapse-item>
@@ -41,12 +62,13 @@
           ></el-button>
         </el-popover>
 
-        <h1 class="project-title">{{ currentProject.title }}</h1>
+        <h1 class="project-title">{{ currentView.title }}</h1>
+        <p v-if="currentView.type == 'pattern'" class="pattern">Шаблон</p>
 
-        <el-popover placement="bottom-start" width="300" trigger="click">
+        <el-popover v-if="currentView.type == 'project'" placement="bottom-start" width="300" trigger="click">
           <div>
             <el-input
-              v-model="currentProject.title"
+              v-model="currentView.title"
               style="margin-bottom: 5px"
             ></el-input>
             <button class="bt-menu" @click="openAccessControl()">
@@ -57,6 +79,24 @@
             </button>
             <el-divider></el-divider>
             <el-button icon="el-icon-delete" @click="deleteProject">
+              Удалить
+            </el-button>
+          </div>
+          <el-button
+            slot="reference"
+            icon="el-icon-setting"
+            class="bt-icon"
+          ></el-button>
+        </el-popover>
+
+        <el-popover v-else placement="bottom-start" width="300" trigger="click">
+          <div>
+            <el-input
+              v-model="currentView.title"
+              style="margin-bottom: 5px"
+            ></el-input>
+            <el-divider></el-divider>
+            <el-button icon="el-icon-delete" @click="deletePattern">
               Удалить
             </el-button>
           </div>
@@ -129,7 +169,8 @@
             <el-form-item label="Планируемое время:" prop="time_plan">
               <el-input-number v-model="newTask.time_plan" size="small" />
             </el-form-item>
-            <el-form-item label="Начало задачи:" prop="start_time">
+
+            <el-form-item label="Начало задачи:" prop="start_date">
               <el-date-picker
                 v-model="newTask.start_date"
                 @change="handleDateChange"
@@ -145,7 +186,7 @@
         </el-popover>
       </el-header>
 
-      <el-container v-if="tasks.length == 0" style="margin: 0px 20px">
+      <el-container v-if="currentTasks.length == 0" style="margin: 0px 20px">
         <p>Нет задач.</p>
       </el-container>
 
@@ -153,21 +194,21 @@
         <el-aside width="357px">
           <Chart
             @load="loadTasks"
-            :tasks="tasks"
+            :tasks="currentTasks"
             :profiles="profiles"
             :apiKey="apiKey"
-            :currentProject="currentProject"
+            :currentView="currentView"
           />
         </el-aside>
 
-        <el-container>
+        <el-container v-if="this.currentView.type == 'project'">
           <el-main style="padding: 0px 10px !important">
             <Diagram
-              :tasks="tasks"
+              :tasks="currentTasks"
               :dateColumns="dateColumns"
               :currentPeriod="currentPeriod"
-              :startDate="currentProject.start_date"
-              :endDate="currentProject.finish_date"
+              :startDate="currentView.start_date"
+              :endDate="currentView.finish_date"
             />
           </el-main>
         </el-container>
@@ -177,15 +218,23 @@
     <ModalProject
       v-model="selectedProject"
       @input="storeProject"
-      @hide="handleModalHide"
-      @show="showDialog"
-      :dialogVisible="dialogVisible"
+      @hide="handleProjectHide"
+      @show="showProjectDialog"
+      :dialogProjectVisible="dialogProjectVisible"
+    />
+
+    <ModalPattern
+      v-model="selectedPattern"
+      @input="storePattern"
+      @hide="handlePatternHide"
+      @show="showPatternDialog"
+      :dialogPatternVisible="dialogPatternVisible"
     />
 
     <AccessControl
       ref="accessControl"
       @input="updateAccess"
-      :currentProject="currentProject"
+      :currentView="currentView"
       :profiles="profiles"
     />
 
@@ -197,6 +246,7 @@
 import Chart from "./chart/Chart.vue";
 import Diagram from "./diagram/Diagram.vue";
 import ModalProject from "./ModalProject.vue";
+import ModalPattern from "./ModalPattern.vue";
 import AccessControl from "./AccessControl.vue";
 import SettingFields from "./SettingFields.vue";
 
@@ -205,25 +255,30 @@ export default {
     Diagram,
     Chart,
     ModalProject,
+    ModalPattern,
     AccessControl,
     SettingFields,
   },
   async created() {
     await this.loadProjects({});
-    this.currentProject = this.projects[0];
+    await this.loadPatterns({});
+    this.currentView = this.projects[0];
     await this.loadTasks({});
     await this.loadProfiles({});
   },
   data() {
     return {
       apiKey: "{PLATRUM_API_KEY}",
-      dialogVisible: false,
+      dialogProjectVisible: false,
+      dialogPatternVisible: false,
       visible: false,
       projects: [],
-      currentProject: {},
+      patterns: [],
+      selectedProject: [],
+      selectedPattern: [],
+      currentView: {},
       arrDate: [],
       allTasks: [],
-      tasks: [],
       profiles: [],
       periods: [
         {
@@ -259,9 +314,16 @@ export default {
     },
   },
   computed: {
+    currentTasks() {
+      if (this.currentView.type == 'pattern') {
+        return this.currentView.tasks;
+      } else {
+        return this.allTasks.filter(item => item.diagramma_new == this.currentView.title).reverse();
+      } 
+    },
     dateColumns() {
-      let startDate = new Date(this.currentProject.start_date);
-      let finishDate = new Date(this.currentProject.finish_date);
+      let startDate = new Date(this.currentView.start_date);
+      let finishDate = new Date(this.currentView.finish_date);
 
       function pad(s) {
         return ("00" + s).slice(-2);
@@ -293,19 +355,25 @@ export default {
   methods: {
     handleDateChange(value) {
       const date = new Date(value).getTime();
-      let startDate = new Date(this.currentProject.start_date).getTime();
-      let finishDate = new Date(this.currentProject.finish_date).getTime();
+      let startDate = new Date(this.currentView.start_date).getTime();
+      let finishDate = new Date(this.currentView.finish_date).getTime();
       let isAvailable = date >= startDate && date <= finishDate;
       if (!isAvailable) {
         this.newTask.start_date = this.prevStartDate ?? "";
         this.$message.error("Эта дата недоступна для выбора.");
       } else this.prevStartDate = this.newTask.start_date;
     },
-    handleModalHide() {
+    handleProjectHide() {
       this.selectedProject = this.createDefaultProject();
     },
-    showDialog(item) {
-      this.dialogVisible = item;
+    handlePatternHide() {
+      this.selectedPattern = this.createDefaultPattern();
+    },
+    showProjectDialog(item) {
+      this.dialogProjectVisible = item;
+    },
+    showPatternDialog(item) {
+      this.dialogPatternVisible = item;
     },
     openAccessControl() {
       this.$refs.accessControl.open();
@@ -318,6 +386,12 @@ export default {
         title: null,
         start_date: null,
         finish_date: null,
+      };
+    },
+    createDefaultPattern() {
+      return {
+        title: null,
+        tasks: [],
       };
     },
     setItemAccessRules(item) {
@@ -336,15 +410,19 @@ export default {
         {}
       );
     },
+    async loadPatterns() {
+      this.patterns = await $platform.api.requestRoute(
+        "plugins.api.storage.select",
+        { entity: "plugin-gantt.pattern", key: this.apiKey },
+        {}
+      );
+    },
     async loadTasks() {
       this.allTasks = await $platform.api.requestRoute(
         "tasks.api.task.list",
         {},
         {}
       );
-      this.tasks = this.allTasks
-        .filter((item) => item.diagramma_new == this.currentProject.title)
-        .reverse();
     },
     async loadProfiles() {
       this.profiles = await $platform.api.requestRoute(
@@ -357,7 +435,10 @@ export default {
       this.currentPeriod = value;
     },
     createProject() {
-      this.dialogVisible = true;
+      this.dialogProjectVisible = true;
+    },
+    createPattern() {
+      this.dialogPatternVisible = true;
     },
     async storeProject(item) {
       try {
@@ -367,30 +448,55 @@ export default {
           itemWithAccessRules
         );
         this.projects.push(storedItem);
-        this.$uiNotify.success("Проект добавлен");
         await this.loadProject({});
+        this.$uiNotify.success("Проект добавлен");
       } catch (e) {
         this.$uiNotify.error("Ошибка при сохранении");
         throw e;
       }
     },
-    changeProject(project) {
+    async storePattern(item, tasks) {
+      try {
+        item.tasks = tasks;
+        const itemWithAccessRules = this.setItemAccessRules(item);
+        const storedItem = await this.$modules.plugins.api.storeOne(
+          "plugin-gantt.pattern",
+          itemWithAccessRules
+        );
+        this.patterns.push(storedItem);
+        await this.loadPatterns({});
+        this.$uiNotify.success("Шаблон добавлен");
+      } catch (e) {
+        this.$uiNotify.error("Ошибка при сохранении");
+        throw e;
+      }
+    },
+    changeView(view) {
       this.arrDate = [];
-      this.currentProject = project;
-      this.tasks = this.allTasks.filter(
-        (item) => item.diagramma_new == this.project.title
-      );
+      this.currentView = view;
     },
     async deleteProject() {
       await $platform.api.requestRoute(
         "plugins.api.storage.delete",
         { entity: "plugin-gantt.project", key: this.apiKey },
-        { filter: [["title", "=", this.project.title]] }
+        { filter: [["title", "=", this.currentView.title]] }
       );
       this.$uiNotify.success("Проект удалён");
+      await this.loadProject({});
+      this.currentView = this.projects[0];
+    },
+    async deletePattern() {
+      await $platform.api.requestRoute(
+        "plugins.api.storage.delete",
+        { entity: "plugin-gantt.pattern", key: this.apiKey },
+        { filter: [["title", "=", this.currentView.title]] }
+      );
+      this.$uiNotify.success("Шаблон удалён");
+      await this.loadPatterns({});
+      this.currentView = this.projects[0];
     },
     async createTask() {
-      const projectEnd = new Date(this.currentProject.finish_date);
+      const projectEnd = new Date(this.currentView.finish_date);
       const taskStart = new Date(this.newTask.start_date);
 
       const taskEnd = new Date(taskStart);
@@ -406,7 +512,7 @@ export default {
             can_edit: true,
             category_key: "task",
             description: this.newTask.description,
-            diagramma_new: this.currentProject.title,
+            diagramma_new: this.currentView.title,
             name: this.newTask.name,
             owner_user_id: "22086f8b917cd0417b85a85b8b7c32ac",
             recurrence_data: {},
@@ -474,4 +580,12 @@ export default {
   padding-left: 10px;
   padding-right: 10px;
 }
+
+.pattern {
+  display: inline-block;
+  align-items: center;
+  margin-left: 8px;
+  margin-right: 8px;
+  font-size: 14px;
+} 
 </style>

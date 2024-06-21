@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     title="Создание проекта"
-    :visible.sync="dialogVisible">
+    :visible.sync="dialogProjectVisible">
     <el-form ref="form" :model="item">
       <el-form-item
         prop="title"
@@ -63,7 +63,7 @@
 export default {
   props: {
     value: Object,
-    dialogVisible: Boolean,
+    dialogProjectVisible: Boolean,
   },
   data() {
     return {
@@ -95,6 +95,7 @@ export default {
         this.$uiNotify.error('Заполните необходимые поля');
         return;
       }
+      this.item.type = 'project';
       this.$emit('input', this.item);
       this.$emit('show', false);
       this.resetState();
