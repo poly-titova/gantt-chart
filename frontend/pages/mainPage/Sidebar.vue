@@ -249,7 +249,7 @@ export default {
       const taskStart = new Date(this.item.start_date);
 
       const taskEnd = new Date(taskStart);
-      taskEnd.setDate(taskEnd.getDate() + Number(this.item.time_plan));
+      taskEnd.setDate(taskEnd.getDate() + Number(this.item.time_plan) - 1);
 
       if (projectEnd < taskEnd) {
         this.$message.error("Ошибка");

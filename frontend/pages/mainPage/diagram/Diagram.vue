@@ -1,5 +1,5 @@
 <template>
-  <div class="gantt" style="position: relative; width: 100%">
+  <div class="gantt" style="width: 100%">
     <div
       class="gantt-row gantt-period"
       :style="{
@@ -13,7 +13,6 @@
 
     <div
       class="gantt-row gantt-lines"
-      :class="[currentPeriod == 10 || currentPeriod == 15 ? 'border' : '']"
       :style="{
         'grid-template-columns': `${setGrid}`,
       }"
@@ -40,11 +39,10 @@
             <li
               v-for="child in task.children"
               :key="child.id"
+              class="task-child"
               :style="{
-                'grid-column': `1, 1fr`,
-                'min-height': '26px',
-                position: 'relative',
-                cursor: 'pointer',
+                visibility: 'hidden',
+                'grid-column': `${setGridRowChild(task, child)}`,
               }"
             ></li>
           </ul>
@@ -52,7 +50,19 @@
       </ul>
     </div>
 
-    <div class="gantt-bars" style="position: absolute; top: 46px; width: 100%">
+    <div class="gantt-bars" style="position: absolute; top: 0px; width: 100%">
+      <div
+        class="gantt-row gantt-period"
+        :style="{
+          visibility: 'hidden',
+          'grid-template-columns': `${setGrid}`,
+        }"
+      >
+        <span v-for="(el, index) in currentView" :key="index">{{
+          currentPeriod == 10 ? weekdaysName(el) : el.name
+        }}</span>
+      </div>
+
       <ul
         v-for="task in dataTable"
         :key="task.id"
@@ -96,6 +106,7 @@ export default {
     dateColumns: Array,
     currentPeriod: Number,
     startDate: String,
+    endDate: String,
   },
   data() {
     return {
@@ -126,38 +137,37 @@ export default {
     setGridBar() {
       let result = "";
       let lenDays = this.dateColumns.length;
+
       if (this.currentPeriod == 10)
         result = `repeat(${lenDays}, ${lenDays < 10 ? "1fr" : "90px"})`;
       else if (this.currentPeriod == 15) {
         let quitDays = lenDays % 7;
-        if (quitDays === 0) {
-          result = `repeat(${lenDays - quitDays}, ${
-            this.countWeeks.length < 15 ? "1fr" : "9px"
-          })`;
-        } else {
-          let percent = Math.floor(100 / (this.countWeeks.length * quitDays));
-          result = `repeat(${lenDays - quitDays}, ${
-            this.countWeeks.length < 15 ? "1fr" : "9px"
-          }) repeat(${quitDays}, ${percent}%)`;
+        const isShortWeeks = this.countWeeks.length < 15;
+        let lenPx = `${Math.floor(60 / 7)}px`; // 60px / 7 days
+
+        switch (quitDays) {
+          case 0:
+            result = `repeat(${lenDays}, ${isShortWeeks ? "1fr" : lenPx})`;
+            break;
+          default:
+            let percent = `${Math.round(
+              100 / (this.countWeeks.length * quitDays)
+            )}%`;
+            let percentPx = `${Math.floor(60 / quitDays)}px`; // 60px / n days, n < 7
+            let percentResult = `${isShortWeeks ? percent : percentPx}`;
+            result = `repeat(${lenDays - quitDays}, ${
+              isShortWeeks ? "1fr" : lenPx
+            }) repeat(${quitDays}, ${percentResult})`;
         }
       } else {
-        let quitDays = lenDays % 7;
-        if (quitDays === 0) {
-          result = `repeat(${lenDays - quitDays}, ${
-            this.countMonths.length < 15 ? "1fr" : "9px"
-          })`;
-        } else {
-          let percent = Math.floor(100 / (this.countWeeks.length * quitDays));
-          result = `repeat(${lenDays - quitDays}, ${
-            this.countMonths.length < 15 ? "1fr" : "9px"
-          }) repeat(${quitDays}, ${percent}%)`;
+        switch (this.countMonths.length) {
+          case 1:
+            result = `repeat(${lenDays}, ${"1fr"})`;
+            break;
+          default:
+            result = this.getRepeatInMonth();
         }
-
-        /*result = `repeat(${lenDays}, ${
-          this.countMonths.length < 12 ? "1fr" : "2px" // - для отображения когда 30 дней распределены равномерно
-        })`;*/
       }
-      console.log(result);
       return result;
     },
     countWeeks() {
@@ -273,6 +283,59 @@ export default {
     },
   },
   methods: {
+    getRepeatInMonth() {
+      let res = "";
+      let months = this.generateMonthObjects(
+        new Date(this.startDate),
+        new Date(this.endDate)
+      );
+
+      const percentEachMonth = Math.floor(100 / this.countMonths.length);
+
+      const isShortMonths = this.countMonths.length < 15;
+      months.forEach((el) => {
+        const differenceMs = el.endDate - el.startDate;
+        let duration = Math.ceil(differenceMs / (1000 * 60 * 60 * 24)) + 1;
+        let checkPercent = Number.isInteger(percentEachMonth / duration);
+        let percent = `${
+          checkPercent ? percentEachMonth / duration + "%" : "1fr"
+        }`;
+        let percentPx = `${Math.floor(72 / duration)}px`; // 72px / n days
+        let percentResult = `${isShortMonths ? percent : percentPx}`;
+        res = res + " " + `repeat(${duration}, ${percentResult})`;
+      });
+
+      return res;
+    },
+    generateMonthObjects(start_date, end_date) {
+      let current = start_date;
+      const months = [];
+
+      while (current <= end_date) {
+        const year = current.getFullYear();
+        const month = current.getMonth();
+        const startDate = new Date(year, month, 1);
+        const endDate = new Date(year, month + 1, 0);
+
+        if (current < start_date) {
+          startDate.setDate(1); // Если это первый месяц в промежутке, установить начало на start_date
+        }
+        if (endDate > end_date) {
+          endDate.setDate(end_date.getDate()); // Если это последний месяц в промежутке, установить конец на end_date
+        }
+
+        months.push({
+          month: month + 1, // Добавляем 1, так как getMonth() возвращает индекс месяца (0 для января)
+          year: year,
+          startDate: startDate,
+          endDate: endDate,
+        });
+
+        current.setMonth(current.getMonth() + 1); // Переходим к следующему месяцу
+      }
+
+      return months;
+    },
     setGridRow(task) {
       const startDate = new Date(this.startDate);
       const date = new Date(task.start_date ?? this.startDate);
@@ -344,7 +407,7 @@ export default {
   padding: 15px 0;
 }
 
-.gantt-lines.border > span {
+.gantt-lines > span {
   display: block;
   border-right: 1px solid #ebeef5;
 }
