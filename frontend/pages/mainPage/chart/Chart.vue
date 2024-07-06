@@ -59,9 +59,10 @@
       ref="sidebar"
       @input="updateTask"
       @load="onload"
-      :currentProject="currentProject"
+      :currentView="currentView"
       :apiKey="apiKey"
       :tasks="tasks"
+      :profiles="profiles"
     />
   </div>
 </template>
@@ -74,7 +75,7 @@ export default {
     apiKey: String,
     tasks: Array,
     profiles: Array,
-    currentProject: Object,
+    currentView: Object,
   },
   data() {
     return {

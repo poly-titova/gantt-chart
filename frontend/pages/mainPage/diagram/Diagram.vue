@@ -1,9 +1,10 @@
 <template>
-  <div class="gantt" style="width: 100%">
+  <div class="gantt">
     <div
       class="gantt-row gantt-period"
       :style="{
         'grid-template-columns': `${setGrid}`,
+        'background-color': `${new Date(date).getDay() == 0 || new Date(date).getDay() == 6 ? '#9093991c' : ''}`
       }"
     >
       <span v-for="(el, index) in currentView" :key="index">{{
@@ -11,72 +12,25 @@
       }}</span>
     </div>
 
-    <div
-      class="gantt-row gantt-lines"
-      :style="{
-        'grid-template-columns': `${setGrid}`,
-      }"
-    >
-      <span v-for="el in currentView" :key="el" :style="{ 'background-color': `${new Date(el).getDay() == 0 || new Date(el).getDay() == 6 ? '#9093991c' : ''}` }"></span>
-    </div>
-
-    <div
-      v-for="task in dataTable"
-      :key="task.id"
-      class="gantt-row"
-      :style="{ 'grid-template-columns': `${setGrid}` }"
-    >
-      <ul class="gantt-row-bars">
-        <li
-          :key="task.id"
-          :style="{
-            'grid-column': `1, 1fr`,
-            'min-height': '26px',
-          }"
-          @click="showTasks(task.id)"
-        >
-          <ul v-if="visibleTasks.indexOf(task.id) != -1" class="gantt-row-bars">
-            <li
-              v-for="child in task.children"
-              :key="child.id"
-              class="task-child"
-              :style="{
-                visibility: 'hidden',
-                'grid-column': `${setGridRowChild(task, child)}`,
-              }"
-            ></li>
-          </ul>
-        </li>
-      </ul>
-    </div>
-
-    <div class="gantt-bars" style="position: absolute; top: 0px; width: 100%">
-      <div
-        class="gantt-row gantt-period"
-        :style="{
-          visibility: 'hidden',
-          'grid-template-columns': `${setGrid}`,
-        }"
-      >
-        <span v-for="(el, index) in currentView" :key="index">{{
-          currentPeriod == 10 ? weekdaysName(el) : el.name
-        }}</span>
-      </div>
-
+    <div class="gantt-bars">
       <ul
         v-for="task in dataTable"
         :key="task.id"
-        style="display: grid; width: 100%"
         class="gantt-row-bars"
         :style="{ 'grid-template-columns': `${setGridBar}` }"
       >
+        <span v-for="date in currentView" :key="date" :id="date" :style="{ 'background-color': `${new Date(date).getDay() == 0 || new Date(date).getDay() == 6 ? '#9093991c' : ''}` }"
+          @dragover.prevent @drop="drop($event)">
+        </span>
+
         <li
           class="task-parent"
           :key="task.id"
           :style="{
             'grid-column': `${setGridRow(task)}`,
           }"
-          @click="showTasks(task.id)"
+          @click="showTasks(task.id);"
+          draggable="true" @dragstart="dragStart(task)"
         >
           <ul
             v-if="visibleTasks.indexOf(task.id) != -1"
@@ -104,6 +58,7 @@ export default {
   props: {
     tasks: Array,
     dateColumns: Array,
+    apiKey: String,
     currentPeriod: Number,
     startDate: String,
     endDate: String,
@@ -111,6 +66,7 @@ export default {
   data() {
     return {
       arrTasks: [],
+      draggedTask: null
     };
   },
   computed: {
@@ -283,6 +239,28 @@ export default {
     },
   },
   methods: {
+    dragStart(task) {
+      this.draggedTask = task;
+    },
+    async drop(event) {
+      const date = new Date(event.target.id);
+      const oldDate = this.draggedTask.start_date;
+      this.draggedTask.start_date = date;
+
+      await $platform.api.requestRoute(
+        "tasks.api.task.update",
+        { key: this.apiKey },
+        {
+          id: this.draggedTask.id,
+          fields: { start_date: `${event.target.id}T21:00:00.000Z` },
+          fields_old: { start_date: oldDate },
+          is_edit_further: null,
+          start_date: `${event.target.id}T21:00:00.000Z`,
+        }
+      );
+
+      this.draggedTask = null;
+    },
     getRepeatInMonth() {
       let res = "";
       let months = this.generateMonthObjects(
@@ -374,12 +352,20 @@ export default {
 };
 </script>
 
-<style>
+<style scoped>
 .gantt {
   display: grid;
+  background-color: white;
+  width: 100%;
   border: 1px solid #ebeef5;
   position: relative;
   overflow: auto;
+}
+
+.gantt-bars {
+  width: 100%;
+  height: 100%;
+  top: 0px;
 }
 
 .gantt-row {
@@ -392,13 +378,6 @@ export default {
   border-bottom: 1px solid #ebeef5;
 }
 
-.gantt-lines {
-  position: absolute;
-  height: 100%;
-  width: 100%;
-  background-color: transparent;
-}
-
 .gantt-period > span {
   text-align: center;
   font-size: 13px;
@@ -407,28 +386,33 @@ export default {
   padding: 15px 0;
 }
 
-.gantt-lines > span {
-  display: block;
-  border-right: 1px solid #ebeef5;
-}
-
 .gantt-row-bars {
   list-style: none;
   display: grid;
-  padding: 11px 0;
+  position: relative;
+  border-bottom: 1px solid #ebeef5;
+  padding: 0;
   margin: 0;
   grid-gap: 0;
   width: 100%;
   grid-gap: 10px 0;
 }
 
+.gantt-row-bars > span {
+  min-height: 48px;
+  border-right: 1px solid #ebeef5;
+}
+
 .task-parent {
+  position: absolute;
+  width: 100%;
   min-height: 26px;
+  margin: 11px 0;
   background-color: #40a0ff7c;
   overflow: hidden;
-  position: relative;
   cursor: pointer;
   border-radius: 30px;
+  z-index: 1;
 }
 
 .task-child {
