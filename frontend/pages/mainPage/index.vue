@@ -220,6 +220,7 @@
       @input="storeProject"
       @hide="handleProjectHide"
       @show="showProjectDialog"
+      :patterns="patterns"
       :dialogProjectVisible="dialogProjectVisible"
     />
 
@@ -448,8 +449,32 @@ export default {
           itemWithAccessRules
         );
         this.projects.push(storedItem);
-        await this.loadProject({});
+        await this.loadProjects({});
         this.$uiNotify.success("Проект добавлен");
+
+        if (item.tasks !== null) {
+          item.tasks.map((task) => {
+            console.log('create', task)
+            $platform.api.requestRoute(
+              "tasks.api.task.create",
+              { key: this.apiKey },
+              {
+                can_edit: true,
+                category_key: "task",
+                description: task.description,
+                diagramma_new: item.title,
+                name: task.name,
+                responsible_user_ids: [''],
+                recurrence_data: {},
+                relations: [],
+                status_key: "new",
+                time_plan: task.time_plan,
+              }
+            );
+          });
+
+          await this.loadTasks({});
+        }
       } catch (e) {
         this.$uiNotify.error("Ошибка при сохранении");
         throw e;
@@ -514,7 +539,6 @@ export default {
             description: this.newTask.description,
             diagramma_new: this.currentView.title,
             name: this.newTask.name,
-            owner_user_id: "22086f8b917cd0417b85a85b8b7c32ac",
             recurrence_data: {},
             relations: [],
             responsible_user_ids: [this.newTask.executor],

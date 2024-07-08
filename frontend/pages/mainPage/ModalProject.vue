@@ -39,6 +39,31 @@
         />
       </el-form-item>
 
+      <el-form-item prop="link" style="margin-left: 100px;">
+        <el-button
+          v-if="!showPatern"
+          size="small"
+          @click="showPatern = true"
+        >
+          <span>Использовать шаблон</span>
+        </el-button>
+
+        <el-select
+          v-else
+          v-model="item.tasks"
+          filterable
+          placeholder="Выберите шаблон"
+        >
+          <el-option
+            v-for="pattern in patterns"
+            :key="pattern.title"
+            :label="pattern.title"
+            :value="pattern.tasks"
+          >
+          </el-option>
+        </el-select>
+      </el-form-item>
+
       <el-form-item class="form_button">
         <el-button
           size="small"
@@ -63,12 +88,14 @@
 export default {
   props: {
     value: Object,
+    patterns: Array,
     dialogProjectVisible: Boolean,
   },
   data() {
     return {
       item: {},
-      formLabelWidth: '100px'
+      formLabelWidth: '100px',
+      showPatern: false,
     };
   },
   watch: {

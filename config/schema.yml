@@ -11,7 +11,7 @@ project:
     finish_date:
       type: date
     tasks:
-      type: array[int]
+      type: array
 
 pattern:
   fields:
