@@ -193,7 +193,8 @@
       <el-container v-else style="margin: 0px 20px">
         <el-aside width="357px">
           <Chart
-            @load="loadTasks"
+            @loadTasks="loadTasks"
+            @loadPatterns="loadPatterns"
             :tasks="currentTasks"
             :profiles="profiles"
             :apiKey="apiKey"
@@ -320,7 +321,7 @@ export default {
         return this.currentView.tasks;
       } else {
         return this.allTasks.filter(item => item.diagramma_new == this.currentView.title).reverse();
-      } 
+      }
     },
     dateColumns() {
       let startDate = new Date(this.currentView.start_date);
@@ -354,6 +355,20 @@ export default {
     },
   },
   methods: {
+    uuidv4() {
+      let d = new Date().getTime();
+
+      if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+        d += performance.now();
+      }
+
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = (d + Math.random() * 16) % 16 | 0;
+        d = Math.floor(d / 16);
+
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
+    },
     handleDateChange(value) {
       const date = new Date(value).getTime();
       let startDate = new Date(this.currentView.start_date).getTime();
@@ -454,7 +469,6 @@ export default {
 
         if (item.tasks !== null) {
           item.tasks.map((task) => {
-            console.log('create', task)
             $platform.api.requestRoute(
               "tasks.api.task.create",
               { key: this.apiKey },
@@ -483,6 +497,7 @@ export default {
     async storePattern(item, tasks) {
       try {
         item.tasks = tasks;
+        tasks.map(task => task.id = this.uuidv4());
         const itemWithAccessRules = this.setItemAccessRules(item);
         const storedItem = await this.$modules.plugins.api.storeOne(
           "plugin-gantt.pattern",
@@ -521,36 +536,63 @@ export default {
       this.currentView = this.projects[0];
     },
     async createTask() {
-      const projectEnd = new Date(this.currentView.finish_date);
-      const taskStart = new Date(this.newTask.start_date);
+      if (this.currentView.type == "project") {
+        const projectEnd = new Date(this.currentView.finish_date);
+        const taskStart = new Date(this.newTask.start_date);
 
-      const taskEnd = new Date(taskStart);
-      taskEnd.setDate(taskEnd.getDate() + Number(this.newTask.time_plan) - 1);
+        const taskEnd = new Date(taskStart);
+        taskEnd.setDate(taskEnd.getDate() + Number(this.newTask.time_plan) - 1);
 
-      if (projectEnd < taskEnd) {
-        this.$message.error("Ошибка");
+        if (projectEnd < taskEnd) {
+          this.$message.error("Ошибка");
+        } else {
+          await $platform.api.requestRoute(
+            "tasks.api.task.create",
+            { key: this.apiKey },
+            {
+              can_edit: true,
+              category_key: "task",
+              description: this.newTask.description,
+              diagramma_new: this.currentView.title,
+              name: this.newTask.name,
+              recurrence_data: {},
+              relations: [],
+              responsible_user_ids: [this.newTask.executor],
+              start_date: this.newTask.start_date,
+              status_key: "new",
+              time_plan: this.newTask.time_plan,
+            }
+          );
+          this.$uiNotify.success("Задание создано");
+          this.visible = false;
+          this.newTask = {};
+          await this.loadTasks({});
+        }
       } else {
-        await $platform.api.requestRoute(
-          "tasks.api.task.create",
-          { key: this.apiKey },
-          {
-            can_edit: true,
-            category_key: "task",
-            description: this.newTask.description,
-            diagramma_new: this.currentView.title,
-            name: this.newTask.name,
-            recurrence_data: {},
-            relations: [],
-            responsible_user_ids: [this.newTask.executor],
-            start_date: this.newTask.start_date,
-            status_key: "new",
-            time_plan: this.newTask.time_plan,
-          }
+        let editPattern = this.patterns.find(pattern => pattern.title == this.currentView.title);
+        editPattern.tasks.push({
+          id: this.uuidv4(),
+          name: this.newTask.name,
+          type: 'template',
+          description: this.newTask.description ? this.newTask.description : '',
+          time_plan: this.newTask.time_plan,
+          parent_data: null,
+          checklist_items: [],
+          link: '',
+          target_task_id: null,
+        });
+
+        await $platform.api.requestRoute('plugins.api.storage.delete', { entity: 'plugin-gantt.pattern', key: this.apiKey }, { filter: [["title", "=", editPattern.title]] });
+        this.patterns = this.patterns.filter(pattern => pattern.title !== editPattern.title);
+
+        const itemWithAccessRules = this.setItemAccessRules(editPattern);
+        await this.$modules.plugins.api.storeOne(
+          "plugin-gantt.pattern",
+          itemWithAccessRules
         );
-        this.$uiNotify.success("Задание создано");
+
+        await this.loadPatterns({});
         this.visible = false;
-        this.newTask = {};
-        await this.loadTasks({});
       }
     },
     async updateAccess() {
