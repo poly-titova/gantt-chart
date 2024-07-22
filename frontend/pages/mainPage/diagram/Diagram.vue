@@ -19,8 +19,14 @@
         class="gantt-row-bars"
         :style="{ 'grid-template-columns': `${setGridBar}` }"
       >
-        <span v-for="date in currentView" :key="date" :id="date" :style="{ 'background-color': `${new Date(date).getDay() == 0 || new Date(date).getDay() == 6 ? '#9093991c' : ''}` }"
-          @dragover.prevent @drop="drop($event)">
+        <span
+          v-for="date in currentView"
+          :key="date"
+          :id="date"
+          :style="{ 'background-color': `${new Date(date).getDay() == 0 || new Date(date).getDay() == 6 ? '#9093991c' : ''}` }"
+          @dragover.prevent
+          @drop="drop($event)"
+          @dragenter="dragEnter($event)">
         </span>
 
         <li
@@ -32,6 +38,11 @@
           @click="showTasks(task.id);"
           draggable="true" @dragstart="dragStart(task)"
         >
+          <span
+            draggable="true" @dragstart="moveStart(task)"
+            class="move-arrow">
+            <i class="el-icon-arrow-left" style="position: absolute; top: 4px"></i>
+          </span>
           <ul
             v-if="visibleTasks.indexOf(task.id) != -1"
             style="display: grid; width: 100%"
@@ -47,6 +58,12 @@
               }"
             ></li>
           </ul>
+          <span
+            draggable="true" @dragstart="moveEnd(task)"
+            class="move-arrow"
+            style="right: 0px;">
+            <i class="el-icon-arrow-right" style="position: absolute; top: 4px; right: 0px;"></i>
+          </span>
         </li>
       </ul>
     </div>
@@ -66,7 +83,11 @@ export default {
   data() {
     return {
       arrTasks: [],
-      draggedTask: null
+      draggedTask: null,
+      startTask: null,
+      endTask: null,
+      startDay: '',
+      timePlan: null,
     };
   },
   computed: {
@@ -242,24 +263,72 @@ export default {
     dragStart(task) {
       this.draggedTask = task;
     },
+    moveStart(task) {
+      this.startTask = task;
+      this.startDay = task.start_date;
+      this.timePlan = task.time_plan;
+    },
+    moveEnd(task) {
+      this.endTask = task;
+      this.oldPlan = task.time_plan;
+    },
+    async dragEnter(event) {
+      const date = new Date(event.target.id);
+      if (this.endTask == null) {
+        this.startTask.start_date = `${event.target.id}T03:00:00.000Z`;
+        this.startTask.time_plan = this.timePlan + Math.round((new Date(this.startDay) - date) / 86400000);
+      } else if (this.startTask == null) {
+        const startDate = new Date(this.endTask.start_date);
+        this.endTask.time_plan = Math.round((date - startDate) / 86400000) + 1;
+      }
+    },
     async drop(event) {
       const date = new Date(event.target.id);
-      const oldDate = this.draggedTask.start_date;
-      this.draggedTask.start_date = date;
 
-      await $platform.api.requestRoute(
-        "tasks.api.task.update",
-        { key: this.apiKey },
-        {
-          id: this.draggedTask.id,
-          fields: { start_date: `${event.target.id}T21:00:00.000Z` },
-          fields_old: { start_date: oldDate },
-          is_edit_further: null,
-          start_date: `${event.target.id}T21:00:00.000Z`,
-        }
-      );
+      if (this.startTask == null && this.endTask == null) {
+        const oldDate = this.draggedTask.start_date;
+        this.draggedTask.start_date = date;
+
+        await $platform.api.requestRoute(
+          "tasks.api.task.update",
+          { key: this.apiKey },
+          {
+            id: this.draggedTask.id,
+            fields: { start_date: `${event.target.id}T00:00:00.000Z` },
+            fields_old: { start_date: oldDate },
+            is_edit_further: null,
+            start_date: `${event.target.id}T00:00:00.000Z`,
+          }
+        );
+      } else if (this.startTask == null) {
+        await $platform.api.requestRoute(
+          "tasks.api.task.update",
+          { key: this.apiKey },
+          {
+            id: this.endTask.id,
+            fields: { time_plan: this.endTask.time_plan },
+            fields_old: { time_plan: this.oldPlan },
+            is_edit_further: null,
+            start_date: this.endTask.start_date,
+          }
+        );
+      } else if (this.endTask == null) {
+        await $platform.api.requestRoute(
+          "tasks.api.task.update",
+          { key: this.apiKey },
+          {
+            id: this.startTask.id,
+            fields: { time_plan: this.startTask.time_plan, start_date: this.startTask.start_date },
+            fields_old: { time_plan: this.timePlan, start_date: this.startDay },
+            is_edit_further: null,
+            start_date: this.startTask.start_date,
+          }
+        );
+      }
 
       this.draggedTask = null;
+      this.startTask = null;
+      this.endTask = null;
     },
     getRepeatInMonth() {
       let res = "";
@@ -316,10 +385,9 @@ export default {
     },
     setGridRow(task) {
       const startDate = new Date(this.startDate);
-      const date = new Date(task.start_date ?? this.startDate);
-      const timeDifference = Math.abs(date - startDate);
-      let left = Math.ceil(timeDifference / (1000 * 60 * 60 * 24));
-      return `${left + 1}/${left + 1 + Number(task.time_plan)}`;
+      const date = new Date(task.start_date ?? startDate);
+      const timeDifference = Math.round((date - startDate) / 86400000);
+      return `${timeDifference + 1}/${timeDifference + 1 + Number(task.time_plan)}`;
     },
     setGridBarChild(task) {
       return `repeat(${task.time_plan}, 1fr)`;
@@ -422,5 +490,13 @@ export default {
   position: relative;
   cursor: pointer;
   border-radius: 15px;
+}
+
+.move-arrow {
+  position: absolute;
+  width: 25px;
+  height: 25px;
+  border-radius: 100%;
+  z-index: 1;
 }
 </style>
