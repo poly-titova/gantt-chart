@@ -2,6 +2,8 @@ project:
   fields:
     id:
       type: int
+    author_id:
+      type: string
     type:
       type: string
     title:
@@ -11,6 +13,8 @@ project:
     finish_date:
       type: date
     tasks:
+      type: array
+    users:
       type: array
 
 pattern:

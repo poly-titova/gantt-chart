@@ -1,130 +1,89 @@
 <template>
   <ui-sidebar
     v-model="isSidebarVisible"
-    :title="`Доступы к проекту «${currentProject}»`"
+    :title="`Доступы к проекту «${currentView.title}»`"
     class="sidebar"
     @hide="resetState"
   >
-    <main style="padding: 15px;">
-      <h1 style="font-weight: 600;">Доступы пользователей ({{ users }} чел.)</h1>
-      <el-table
-        :data="tableUsers"
-        class="table">
-        <el-table-column
+    <el-table
+      :data="users"
+      style="width: 100%">
+      <el-table-column
+        prop="name"
+        label="Пользователь">
+      </el-table-column>
+      <el-table-column
+        prop="role"
+        label="Права">
+      </el-table-column>
+      <el-table-column>
+        <template slot-scope="{ row }">
+          <el-button
+            size="mini"
+            type="danger"
+            icon="el-icon-delete"
+            @click="deleteItem(row)"/>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <el-form ref="form" :model="item" style="margin-left: 15px;">
+      <div v-for="(user, index) in arrUsers" :key="index">
+        <el-form-item
           prop="name"
-          label="Пользователь"
-          width="250">
-          <template slot-scope="scope">
-            <el-select v-model="user.name" placeholder="Начните искать...">
-              <el-option
-                v-for="profile in profiles"
-                :key="profile.id"
-                :label="profile.name"
-                :value="profile.id">
-                <span style="float: left">{{ profile.id }}</span>
-                <span style="float: right; color: #8492a6; font-size: 13px">{{ profile.name }}</span>
-              </el-option>
-            </el-select>
-          </template>
-        </el-table-column>
+          label="Пользователь">
+          <orgschema-user-selector
+            v-model="user.id"
+            :font-size="14"
+          />
+        </el-form-item>
 
-        <el-table-column
+        <el-form-item
           prop="rights"
-          label="Права"
-          width="240">
-          <template slot-scope="scope">
-            <el-select v-model="user.rights">
-              <el-option
-                v-for="option in options"
-                :key="option.value"
-                :label="option.label"
-                :value="option.value">
-              </el-option>
-            </el-select>
-          </template>
-        </el-table-column>
+          label="Права">
+          <el-select v-model="user.rights">
+            <el-option
+              v-for="option in options"
+              :key="option.label"
+              :label="option.label"
+              :value="option.value"
+            >
+            </el-option>
+          </el-select>
+        </el-form-item>
+      </div>
 
-        <el-table-column
-          prop="role"
-          label="Роль">
-          <template slot-scope="scope">
-            <el-button
-              size="mini"
-              icon="el-icon-close"
-              @click="handleDelete(scope.$index, scope.row)"></el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-button class="button-plus" type="primary" plain>+ Добавить пользователя</el-button>
-
-      <el-divider style="margin: 14px 0px !important;"></el-divider>
-
-      <h1 style="font-weight: 600;">Доступы должностей</h1>
-      <el-table
-        :data="tablePosition"
-        class="table">
-        <el-table-column
-          prop="position"
-          label="Должность"
-          width="250">
-          <template slot-scope="scope">
-            <el-select v-model="position.position" placeholder="Начните искать...">
-              <el-option
-                v-for="profile in profiles"
-                :key="profile.id"
-                :label="profile.name"
-                :value="profile.id">
-                <span style="float: left">{{ profile.id }}</span>
-                <span style="float: right; color: #8492a6; font-size: 13px">{{ profile.name }}</span>
-              </el-option>
-            </el-select>
-          </template>
-        </el-table-column>
-
-        <el-table-column
-          prop="rights"
-          label="Права"
-          width="170">
-          <template slot-scope="scope">
-            <el-select v-model="position.rights">
-              <el-option
-                v-for="option in options"
-                :key="option.value"
-                :label="option.label"
-                :value="option.value">
-              </el-option>
-            </el-select>
-            <el-checkbox v-model="position.children">+ подчиненные</el-checkbox>
-            <el-button
-              size="mini"
-              icon="el-icon-close"
-              @click="handleDelete(scope.$index, scope.row)"></el-button>
-          </template>
-        </el-table-column>
-
-        <el-table-column
-          prop="additional">
-          <template slot-scope="scope">
-            <el-checkbox v-model="position.children" style="font-size: 11px;">+ подчиненные</el-checkbox>
-            <el-button
-              size="mini"
-              icon="el-icon-close"
-              @click="handleDelete(scope.$index, scope.row)"></el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-button class="button-plus" type="primary" plain>+ Добавить должность</el-button>
-    </main>
-
-    <footer style="padding: 0px 10px; margin-bottom: 10px;">
       <el-button
-        type="success"
-        class="button-save"
-        @click="submit"
+        size="small"
+        @click="addUser"
       >
-        <span>Сохранить</span>
+        <span>+ Добавить пользователя</span>
       </el-button>
-    </footer>
+
+      <el-form-item style="margin-top: 20px; margin-bottom: 10px; width: 100%">
+        <el-row :gutter="10">
+          <el-col :span="12">
+            <el-button
+              style="position: relative; width: 100%; margin-right: 10px"
+              @click="close"
+            >
+              <span>Отменить</span>
+            </el-button>
+          </el-col>
+
+          <el-col :span="12">
+            <el-button
+              type="success"
+              plain
+              style="position: relative; width: 100%; margin: 0px 10px"
+              @click="submit"
+            >
+              <span>Сохранить</span>
+            </el-button>
+          </el-col>
+        </el-row>
+      </el-form-item>
+    </el-form>
   </ui-sidebar>
 </template>
 
@@ -132,28 +91,15 @@
 export default {
   props: {
     value: Object,
-    currentProject: String,
+    currentView: String,
     profiles: Array,
   },
   data() {
     return {
       isSidebarVisible: false,
-      user: {},
-      position: {},
-      tableUsers: [
-        {
-          name: 'Полина Титова',
-          rights: 'Работа с доской + администрирование',
-          role: 'Администратор'
-        }
-      ],
-      tableUsers: [
-        {
-          name: 'Полина Титова',
-          rights: 'Работа с доской + администрирование',
-          role: 'Администратор'
-        }
-      ],
+      item: {},
+      users: [],
+      arrUsers: [],
       options: [
         {
           value: 'read',
@@ -176,26 +122,38 @@ export default {
       },
     },
   },
-  computed: {
-    item() {
-      return this.task;
-    },
-    users(){
-      return 0;
-    }
-  },
   methods: {
     open() {
       this.isSidebarVisible = true;
+      this.currentView.users.map(user =>
+        this.users.push({
+          id: user.id,
+          rights: user.rights,
+          name: this.profiles[user.id].name,
+          role: this.options.find(item => item.value == user.rights).label,
+        })
+      );
     },
     close() {
       this.isSidebarVisible = false;
+      this.users = [];
     },
-    handleDelete(index, row) {
-      console.log(index, row);
+    addUser() {
+      return this.arrUsers.push(
+        {
+          id: '',
+          rights: '',
+        }
+      );
+    },
+    async deleteItem(row) {
+      this.users = this.users.filter(user => user.id !== row.id);
     },
     async submit() {
-      this.$emit('input', [ this.user, this.position ]);
+      this.arrUsers.map(user =>
+        this.users.push(user)
+      );
+      this.$emit('input', this.users);
       this.close();
     },
   },
@@ -218,14 +176,7 @@ export default {
   border: none;
 }
 
-.button-plus {
-  font-size: 12px;
-  padding: 7px 15px !important;
-  margin-left: 8px;
-  border-radius: 3px;
-}
-
-.button-save {
-  padding: 8px 23px;
+.form_button {
+  margin-top: 10px;
 }
 </style>

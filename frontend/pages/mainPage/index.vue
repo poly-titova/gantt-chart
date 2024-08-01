@@ -22,13 +22,26 @@
             </el-button>
             <el-collapse v-model="activeProjects">
               <el-collapse-item
-                title="Выбрать проект"
+                title="Личные проекты"
                 name="1"
                 style="padding-left: 10px"
               >
-                <div v-for="project in projects" class="list">
-                  <el-button type="text" @click="changeView(project)">
-                    {{ project.title }}
+                <div v-for="myProject in myProjects" class="list">
+                  <el-button type="text" @click="changeView(myProject)">
+                    {{ myProject.title }}
+                  </el-button>
+                </div>
+              </el-collapse-item>
+
+              <el-collapse-item
+                v-if="invitedProjects.length !== 0"
+                title="Приглашённые проекты"
+                name="1"
+                style="padding-left: 10px"
+              >
+                <div v-for="invitedProject in invitedProjects" class="list">
+                  <el-button type="text" @click="changeView(invitedProject)">
+                    {{ invitedProject.title }}
                   </el-button>
                 </div>
               </el-collapse-item>
@@ -265,6 +278,8 @@ export default {
     await this.loadProjects({});
     await this.loadPatterns({});
     this.currentView = this.projects[0];
+    this.myProjects = this.projects.filter(item => item.author_id == this.myUserId);
+    this.invitedProjects = this.projects.filter(item => item.author_id !== this.myUserId && item.users.find(user => user.id == this.myUserId) !== undefined);
     await this.loadTasks({});
     await this.loadProfiles({});
   },
@@ -274,7 +289,10 @@ export default {
       dialogProjectVisible: false,
       dialogPatternVisible: false,
       visible: false,
+      myUserId: this.$modules.user.profile.getCurrent().user_id,
       projects: [],
+      myProjects: [],
+      invitedProjects: [],
       patterns: [],
       selectedProject: [],
       selectedPattern: [],
@@ -458,6 +476,8 @@ export default {
     },
     async storeProject(item) {
       try {
+        item.author_id = this.myUserId;
+        item.users = [];
         const itemWithAccessRules = this.setItemAccessRules(item);
         const storedItem = await this.$modules.plugins.api.storeOne(
           "plugin-gantt.project",
@@ -578,6 +598,7 @@ export default {
           time_plan: this.newTask.time_plan,
           parent_data: null,
           checklist_items: [],
+          relations: [],
           link: '',
           target_task_id: null,
         });
@@ -595,8 +616,21 @@ export default {
         this.visible = false;
       }
     },
-    async updateAccess() {
-      console.log("success");
+    async updateAccess(users) {
+      let editProject = this.projects.find(project => project.title == this.currentView.title);
+      editProject.users = users;
+
+      await $platform.api.requestRoute('plugins.api.storage.delete', { entity: 'plugin-gantt.project', key: this.apiKey }, { filter: [["title", "=", editProject.title]] });
+      this.projects = this.projects.filter(project => project.title !== editProject.title);
+
+      const itemWithAccessRules = this.setItemAccessRules(editProject);
+      await this.$modules.plugins.api.storeOne(
+        "plugin-gantt.project",
+        itemWithAccessRules
+      );
+
+      await this.loadProjects({});
+      this.$uiNotify.success("Права обновлены");
     },
     async updateFields() {
       console.log("success");
